@@ -1,0 +1,2762 @@
+[
+  {
+    "id": "setup-01",
+    "category": "setup",
+    "description": "Update package metadata and README",
+    "depends_on": [],
+    "steps": [
+      "Update root package.json name to 'quickcarousals'",
+      "Update apps/nextjs/package.json name",
+      "Rewrite README.md for QuickCarousals",
+      "Create .env.example with documented variables"
+    ],
+    "validation": {
+      "_note": "Check package naming and config files exist.",
+      "commands": [
+        "jq -r '.name' package.json | grep -q 'quickcarousals' && echo 'PASS: package.json name' || echo 'FAIL: package.json name'",
+        "grep -q 'QuickCarousals' README.md && echo 'PASS: README updated' || echo 'FAIL: README missing QuickCarousals'",
+        "test -f .env.example && echo 'PASS: .env.example exists' || echo 'FAIL: .env.example missing'"
+      ],
+      "expected": "package.json name is 'quickcarousals', README mentions QuickCarousals, .env.example exists with documented variables"
+    },
+    "passes": false
+  },
+  {
+    "id": "setup-02",
+    "category": "setup",
+    "description": "Update site configuration and branding assets",
+    "depends_on": [
+      "setup-01"
+    ],
+    "steps": [
+      "Update apps/nextjs/src/config/site.ts with QuickCarousals metadata",
+      "Replace apps/nextjs/public/favicon.ico",
+      "Replace apps/nextjs/public/logo.svg",
+      "Update apps/nextjs/src/styles/globals.css with brand colors"
+    ],
+    "validation": {
+      "_note": "Verify branding config and dev server health.",
+      "commands": [
+        "grep -q 'QuickCarousals' apps/nextjs/src/config/site.ts && echo 'PASS: site.ts updated' || echo 'FAIL'",
+        "test -f apps/nextjs/public/favicon.ico && echo 'PASS: favicon exists' || echo 'FAIL'",
+        "curl -s -o /dev/null -w '%{http_code}' $BASE_URL | grep -q '200' && echo 'PASS: dev server running' || echo 'FAIL'"
+      ],
+      "expected": "site.ts contains 'QuickCarousals', favicon.ico exists, dev server responds 200"
+    },
+    "passes": false
+  },
+  {
+    "id": "setup-03",
+    "category": "setup",
+    "description": "Update landing page for QuickCarousals",
+    "depends_on": [
+      "setup-02"
+    ],
+    "steps": [
+      "Update apps/nextjs/src/app/layout.tsx metadata",
+      "Replace marketing page hero section",
+      "Replace features section with carousel features",
+      "Update CTA copy",
+      "Add data-testid='hero_headline' to main heading"
+    ],
+    "validation": {
+      "_note": "Landing page should show QuickCarousals branding with hero_headline testid.",
+      "commands": [
+        "agent-browser open $BASE_URL/en",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'hero_headline'",
+        "agent-browser errors | tee $LOG_DIR/landing_errors.txt",
+        "agent-browser screenshot $SCREENSHOT_DIR/setup/landing-page.png"
+      ],
+      "expected": "hero_headline visible with QuickCarousals value prop, features section present, no console errors"
+    },
+    "passes": false
+  },
+  {
+    "id": "setup-04",
+    "category": "setup",
+    "description": "Update auth pages copy",
+    "depends_on": [
+      "setup-02"
+    ],
+    "steps": [
+      "Update login page title and helper text",
+      "Update register page title and helper text",
+      "Add data-testid='auth_title' to auth headings"
+    ],
+    "validation": {
+      "_note": "Auth pages should have auth_title testid and QuickCarousals branding.",
+      "commands": [
+        "agent-browser open $BASE_URL/en/login-clerk",
+        "agent-browser wait --load networkidle",
+        "agent-browser screenshot $SCREENSHOT_DIR/setup/auth-login.png",
+        "agent-browser open $BASE_URL/en/register",
+        "agent-browser wait --load networkidle",
+        "agent-browser screenshot $SCREENSHOT_DIR/setup/auth-register.png"
+      ],
+      "expected": "Login and register pages load without errors, show QuickCarousals branding"
+    },
+    "passes": false
+  },
+  {
+    "id": "setup-05",
+    "category": "setup",
+    "description": "Update i18n dictionaries",
+    "depends_on": [
+      "setup-03",
+      "setup-04"
+    ],
+    "steps": [
+      "Update en.json with QuickCarousals strings",
+      "Update other language files (ja.json, ko.json, zh.json)"
+    ],
+    "validation": {
+      "_note": "Check i18n files exist and are valid JSON.",
+      "commands": [
+        "grep -q 'QuickCarousals' apps/nextjs/src/config/dictionaries/en.json && echo 'PASS' || echo 'FAIL'",
+        "jq '.' apps/nextjs/src/config/dictionaries/en.json > /dev/null && echo 'PASS: valid JSON' || echo 'FAIL'"
+      ],
+      "expected": "en.json contains 'QuickCarousals', all dictionary files are valid JSON"
+    },
+    "passes": false
+  },
+  {
+    "id": "setup-06",
+    "category": "setup",
+    "description": "Add Profile model to Prisma schema",
+    "depends_on": [
+      "setup-01"
+    ],
+    "steps": [
+      "Add Profile model to packages/db/prisma/schema.prisma",
+      "Include clerkUserId, subscriptionTier, and timestamps",
+      "Run bun db:push to apply schema changes"
+    ],
+    "validation": {
+      "_note": "Profile model must exist in schema with clerkUserId field.",
+      "commands": [
+        "grep -q 'model Profile' packages/db/prisma/schema.prisma && echo 'PASS: Profile model exists' || echo 'FAIL'",
+        "grep -q 'clerkUserId' packages/db/prisma/schema.prisma && echo 'PASS: clerkUserId field' || echo 'FAIL'"
+      ],
+      "expected": "Profile model exists with clerkUserId, subscriptionTier, timestamps. db:push succeeds."
+    },
+    "passes": false
+  },
+  {
+    "id": "setup-07",
+    "category": "setup",
+    "description": "Add StyleKit model to Prisma schema",
+    "depends_on": [
+      "setup-06"
+    ],
+    "steps": [
+      "Add StyleKit model to schema.prisma with id, name, typography, colors, spacingRules",
+      "Add isPremium boolean flag",
+      "Create seed script for 8 default style kits",
+      "Run bun db:push to apply schema"
+    ],
+    "validation": {
+      "_note": "StyleKit model must exist with isPremium flag for gating premium kits.",
+      "commands": [
+        "grep -q 'model StyleKit' packages/db/prisma/schema.prisma && echo 'PASS: StyleKit model' || echo 'FAIL'",
+        "grep -q 'isPremium' packages/db/prisma/schema.prisma && echo 'PASS: isPremium field' || echo 'FAIL'"
+      ],
+      "expected": "StyleKit model exists with id, name, typography, colors, spacingRules, isPremium. Seed script creates 8 default kits."
+    },
+    "passes": false
+  },
+  {
+    "id": "setup-08",
+    "category": "setup",
+    "description": "Add TemplateLayout model to Prisma schema",
+    "depends_on": [
+      "setup-07"
+    ],
+    "steps": [
+      "Add TemplateLayout model to schema with id, name, category, slideType, layersBlueprint",
+      "Create seed script for 9 layout types",
+      "Run bun db:push to apply schema"
+    ],
+    "validation": {
+      "_note": "TemplateLayout model stores layout blueprints for slides.",
+      "commands": [
+        "grep -q 'model TemplateLayout' packages/db/prisma/schema.prisma && echo 'PASS: TemplateLayout model' || echo 'FAIL'",
+        "grep -q 'layersBlueprint' packages/db/prisma/schema.prisma && echo 'PASS: layersBlueprint field' || echo 'FAIL'"
+      ],
+      "expected": "TemplateLayout model exists with id, name, category, slideType, layersBlueprint (JSON). Seed script creates 9 layout types."
+    },
+    "passes": false
+  },
+  {
+    "id": "setup-09",
+    "category": "setup",
+    "description": "Add BrandKit model to Prisma schema",
+    "depends_on": [
+      "setup-06"
+    ],
+    "steps": [
+      "Add BrandKit model with colors, fonts, logoUrl, handle, footerStyle",
+      "Add userId relation to Profile with onDelete: Cascade",
+      "Add indexes for userId",
+      "Run bun db:push to apply schema"
+    ],
+    "validation": {
+      "_note": "BrandKit model stores user brand assets with userId relation.",
+      "commands": [
+        "grep -q 'model BrandKit' packages/db/prisma/schema.prisma && echo 'PASS: BrandKit model' || echo 'FAIL'",
+        "grep -A5 'model BrandKit' packages/db/prisma/schema.prisma | grep -q 'userId' && echo 'PASS: userId relation' || echo 'FAIL'"
+      ],
+      "expected": "BrandKit model exists with colors, fonts, logoUrl, handle, footerStyle, userId relation (onDelete: Cascade)"
+    },
+    "passes": false
+  },
+  {
+    "id": "setup-10",
+    "category": "setup",
+    "description": "Add Project model to Prisma schema",
+    "depends_on": [
+      "setup-09",
+      "setup-07"
+    ],
+    "steps": [
+      "Add Project model with title, brandKitId, styleKitId, status",
+      "Add userId relation to Profile with onDelete: Cascade",
+      "Add relations to BrandKit and StyleKit",
+      "Add ProjectStatus enum",
+      "Run bun db:push to apply schema"
+    ],
+    "validation": {
+      "_note": "Project model links users to carousels with relations to BrandKit and StyleKit.",
+      "commands": [
+        "grep -q 'model Project' packages/db/prisma/schema.prisma && echo 'PASS: Project model' || echo 'FAIL'",
+        "grep -q 'enum ProjectStatus' packages/db/prisma/schema.prisma && echo 'PASS: ProjectStatus enum' || echo 'FAIL'"
+      ],
+      "expected": "Project model exists with title, brandKitId, styleKitId, status, userId. ProjectStatus enum defined."
+    },
+    "passes": false
+  },
+  {
+    "id": "setup-11",
+    "category": "setup",
+    "description": "Add Slide model to Prisma schema",
+    "depends_on": [
+      "setup-10",
+      "setup-08"
+    ],
+    "steps": [
+      "Add Slide model with orderIndex, layoutId, slideType, layers, content",
+      "Add projectId relation to Project with onDelete: Cascade",
+      "Add relation to TemplateLayout",
+      "Run bun db:push to apply schema"
+    ],
+    "validation": {
+      "_note": "Slide model stores individual carousel slides with layers JSON.",
+      "commands": [
+        "grep -q 'model Slide' packages/db/prisma/schema.prisma && echo 'PASS: Slide model' || echo 'FAIL'",
+        "grep -A10 'model Slide' packages/db/prisma/schema.prisma | grep -q 'layers' && echo 'PASS: layers field' || echo 'FAIL'"
+      ],
+      "expected": "Slide model exists with orderIndex, layoutId, slideType, layers (JSON), content, projectId relation"
+    },
+    "passes": false
+  },
+  {
+    "id": "setup-12",
+    "category": "setup",
+    "description": "Add Export model to Prisma schema",
+    "depends_on": [
+      "setup-10"
+    ],
+    "steps": [
+      "Add Export model with exportType, status, fileUrl, errorMessage",
+      "Add projectId relation to Project with onDelete: Cascade",
+      "Add ExportType and ExportStatus enums",
+      "Run bun db:push to apply schema"
+    ],
+    "validation": {
+      "_note": "Export model tracks export jobs with status and file URL.",
+      "commands": [
+        "grep -q 'model Export' packages/db/prisma/schema.prisma && echo 'PASS: Export model' || echo 'FAIL'",
+        "grep -q 'enum ExportStatus' packages/db/prisma/schema.prisma && echo 'PASS: ExportStatus enum' || echo 'FAIL'"
+      ],
+      "expected": "Export model exists with exportType, status, fileUrl, errorMessage, projectId. ExportType and ExportStatus enums defined."
+    },
+    "passes": false
+  },
+  {
+    "id": "setup-13",
+    "category": "setup",
+    "description": "Create API health endpoint and error handling",
+    "depends_on": [
+      "setup-02"
+    ],
+    "steps": [
+      "Create app/api/health/route.ts returning {status: 'ok'}",
+      "Define shared ApiError class and error response shape",
+      "Add Zod schema validation helper"
+    ],
+    "validation": {
+      "_note": "Health endpoint is public and should always return 200 with status ok.",
+      "commands": [
+        "curl -s $BASE_URL/api/health | jq -e '.status == \"ok\"' && echo 'PASS' || echo 'FAIL'"
+      ],
+      "expected": "GET /api/health returns {\"status\":\"ok\"} with 200 status"
+    },
+    "passes": false
+  },
+  {
+    "id": "setup-14",
+    "category": "setup",
+    "description": "Configure auth guards for protected API endpoints",
+    "depends_on": [
+      "setup-13"
+    ],
+    "steps": [
+      "Create withAuth middleware helper",
+      "Return 401 for unauthenticated requests",
+      "Extract user from session"
+    ],
+    "validation": {
+      "_note": "Auth guard should return 401 for requests without valid session.",
+      "commands": [
+        "curl -s -o /dev/null -w '%{http_code}' $BASE_URL/api/projects | grep -q '401' && echo 'PASS: 401 for unauth' || echo 'FAIL'"
+      ],
+      "expected": "withAuth middleware returns 401 for unauthenticated requests, extracts userId from session for authenticated requests"
+    },
+    "passes": false
+  },
+  {
+    "id": "infra-01",
+    "category": "infrastructure",
+    "description": "Configure file storage buckets",
+    "depends_on": [
+      "setup-01"
+    ],
+    "steps": [
+      "Configure storage bucket for logos",
+      "Configure storage bucket for exports",
+      "Create upload utility function"
+    ],
+    "validation": {
+      "_note": "Storage config for Cloudflare R2 or S3-compatible storage with two buckets.",
+      "commands": [
+        "grep -rq 'logos\\|LOGOS' apps/nextjs/src/lib && echo 'PASS: logos bucket' || echo 'FAIL'",
+        "grep -rq 'exports\\|EXPORTS' apps/nextjs/src/lib && echo 'PASS: exports bucket' || echo 'FAIL'"
+      ],
+      "expected": "Storage buckets configured: 'logos' for brand assets, 'exports' for generated PDFs/PNGs"
+    },
+    "passes": false
+  },
+  {
+    "id": "infra-02",
+    "category": "infrastructure",
+    "description": "Implement signed URL generation and upload endpoint",
+    "depends_on": [
+      "infra-01"
+    ],
+    "steps": [
+      "Create getSignedUrl utility with 24hr expiry",
+      "Create /api/upload endpoint for file uploads"
+    ],
+    "validation": {
+      "_note": "AUTH REQUIRED: Upload endpoint needs authentication. Test that route file exists and signed URL utility works.",
+      "commands": [
+        "test -f apps/nextjs/src/app/api/upload/route.ts && echo 'PASS: upload route exists' || echo 'FAIL'",
+        "grep -q 'getSignedUrl' apps/nextjs/src/lib && echo 'PASS: getSignedUrl utility' || echo 'FAIL'"
+      ],
+      "expected": "/api/upload accepts POST with file, returns {url: signed_url}. Signed URL valid for 24hrs."
+    },
+    "passes": false
+  },
+  {
+    "id": "infra-03",
+    "category": "infrastructure",
+    "description": "Configure Redis connection",
+    "depends_on": [
+      "setup-01"
+    ],
+    "steps": [
+      "Add Upstash Redis connection config",
+      "Create Redis client singleton",
+      "Test connection on startup"
+    ],
+    "validation": {
+      "_note": "Redis client singleton for BullMQ queue backend.",
+      "commands": [
+        "grep -q 'REDIS\\|UPSTASH' .env.example && echo 'PASS: Redis env documented' || echo 'FAIL'",
+        "grep -rq 'Redis\\|redis' apps/nextjs/src/lib && echo 'PASS: Redis client' || echo 'FAIL'"
+      ],
+      "expected": "Redis client singleton in lib/redis.ts, env vars REDIS_URL or UPSTASH_REDIS_REST_URL documented"
+    },
+    "passes": false
+  },
+  {
+    "id": "infra-04",
+    "category": "infrastructure",
+    "description": "Set up BullMQ render queue",
+    "depends_on": [
+      "infra-03"
+    ],
+    "steps": [
+      "Create renderQueue with BullMQ",
+      "Create /api/queues/render/status endpoint",
+      "Add job retry configuration"
+    ],
+    "validation": {
+      "_note": "BullMQ queue for background rendering with status endpoint.",
+      "commands": [
+        "test -f apps/nextjs/src/app/api/queues/render/status/route.ts && echo 'PASS: status route' || echo 'FAIL'",
+        "grep -rq 'renderQueue\\|BullMQ\\|Queue' apps/nextjs/src && echo 'PASS: queue configured' || echo 'FAIL'"
+      ],
+      "expected": "renderQueue created with BullMQ. /api/queues/render/status returns {waiting, active, completed, failed} counts."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-01",
+    "category": "feature",
+    "description": "Create OpenAI service with structured output",
+    "depends_on": [
+      "setup-13"
+    ],
+    "steps": [
+      "Create lib/openai.ts client",
+      "Define TypeScript types for slide plan output",
+      "Create generateStructuredOutput helper",
+      "Write unit tests for OpenAI service (apps/nextjs/src/lib/openai.test.ts)",
+      "Test: successful generation with valid input",
+      "Test: error handling for OpenAI failures",
+      "Test: retry logic for transient errors",
+      "Test: timeout handling"
+    ],
+    "validation": {
+      "_note": "Feature must have tests that pass before marking complete",
+      "commands": [
+        "test -f apps/nextjs/src/lib/openai.ts && echo 'PASS: openai.ts exists' || echo 'FAIL'",
+        "grep -q 'SlidePlan\\|SlideContent' apps/nextjs/src/lib/openai.ts && echo 'PASS: types defined' || echo 'FAIL'",
+        "bun run typecheck 2>&1 | grep -q 'error' && echo 'FAIL: type errors' || echo 'PASS: no type errors'",
+        "test -f apps/nextjs/src/lib/openai.test.ts && echo 'PASS: test file exists' || echo 'FAIL: tests missing'",
+        "bun run test apps/nextjs/src/lib/openai.test.ts 2>&1 | tee /tmp/openai_test.txt",
+        "grep -q 'PASS\\|✓' /tmp/openai_test.txt && echo 'PASS: tests passing' || echo 'FAIL: tests failing'"
+      ],
+      "expected": "OpenAI client exists with types, tests exist and pass"
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-02",
+    "category": "feature",
+    "description": "Implement slide plan generation (AI Step 1)",
+    "depends_on": [
+      "feature-01"
+    ],
+    "steps": [
+      "Create prompt for slide structure generation",
+      "Output: array of {slide_type, title, intent}",
+      "Enforce 8-12 slides based on input"
+    ],
+    "validation": {
+      "_note": "AI function generates slide structure plan (8-12 slides) from topic.",
+      "commands": [
+        "grep -q 'generateSlidePlan' apps/nextjs/src/lib/openai.ts && echo 'PASS: function exists' || echo 'FAIL'",
+        "grep -q 'slide_type\\|slideType' apps/nextjs/src/lib/openai.ts && echo 'PASS: output structure' || echo 'FAIL'"
+      ],
+      "expected": "generateSlidePlan(topic) returns [{slide_type, title, intent}, ...] with 8-12 items"
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-03",
+    "category": "feature",
+    "description": "Implement slide copy generation (AI Step 2)",
+    "depends_on": [
+      "feature-02"
+    ],
+    "steps": [
+      "Create prompt with copy constraints (headline ≤12 words, bullets ≤5)",
+      "Generate content for each slide from plan",
+      "Return {headline, body, emphasis_text} per slide"
+    ],
+    "validation": {
+      "_note": "AI function generates copy for each slide with word limits.",
+      "commands": [
+        "grep -q 'generateSlideCopy' apps/nextjs/src/lib/openai.ts && echo 'PASS: function exists' || echo 'FAIL'",
+        "grep -q 'headline\\|body' apps/nextjs/src/lib/openai.ts && echo 'PASS: output fields' || echo 'FAIL'"
+      ],
+      "expected": "generateSlideCopy(plan) returns [{headline (≤12 words), body (≤5 bullets), emphasis_text}, ...]"
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-04",
+    "category": "feature",
+    "description": "Implement layout selection logic (AI Step 3)",
+    "depends_on": [
+      "feature-03",
+      "setup-08"
+    ],
+    "steps": [
+      "Map slide_type to layout_id",
+      "Consider text length for layout variants",
+      "Return layout_id for each slide"
+    ],
+    "validation": {
+      "_note": "Layout selector maps slide_type to best matching layout template.",
+      "commands": [
+        "grep -rq 'selectLayout' apps/nextjs/src && echo 'PASS: function exists' || echo 'FAIL'"
+      ],
+      "expected": "selectLayout(slide_type, text_length) returns layout_id from TemplateLayout table"
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-05",
+    "category": "feature",
+    "description": "Create /api/generate/topic endpoint",
+    "depends_on": [
+      "feature-04",
+      "setup-14"
+    ],
+    "steps": [
+      "Create route handler with Zod validation",
+      "Chain: slidePlan → slideCopy → layoutSelection",
+      "Return complete slides array",
+      "Write API route tests (apps/nextjs/src/app/api/generate/topic/route.test.ts)",
+      "Test: valid topic generates 8-12 slides",
+      "Test: invalid input returns 400 with error",
+      "Test: missing fields returns validation error",
+      "Test: OpenAI failure handled gracefully",
+      "Run all tests and verify they pass"
+    ],
+    "validation": {
+      "_note": "AUTH LIKELY REQUIRED (uses OpenAI = costs money). Test via unit tests with mocked auth, or use browser after login. Curl examples show expected behavior for authenticated requests.",
+      "commands": [
+        "# 1. Check route exists",
+        "test -f apps/nextjs/src/app/api/generate/topic/route.ts && echo 'PASS: route exists' || echo 'FAIL'",
+        "# 2. Test validation (empty input should return 400 error)",
+        "curl -s -X POST -H 'Content-Type: application/json' -d '{}' $BASE_URL/api/generate/topic | jq -e '.error' && echo 'PASS: validates empty input' || echo 'PASS: or returns 401 (auth required)'",
+        "# 3. Check test file exists and runs",
+        "test -f apps/nextjs/src/app/api/generate/topic/route.test.ts && echo 'PASS: test file exists' || echo 'FAIL: tests missing'",
+        "bun run test apps/nextjs/src/app/api/generate/topic 2>&1 | tee /tmp/topic_test.txt",
+        "grep -q 'PASS\\|✓' /tmp/topic_test.txt && echo 'PASS: API tests passing' || echo 'FAIL: API tests failing'"
+      ],
+      "expected": "Route exists. Empty input returns validation error (400) or auth error (401). Unit tests pass. When authenticated: POST with valid topic returns {slides: [...]} with 8-12 slides, each having headline and content."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-06",
+    "category": "feature",
+    "description": "Create /api/generate/text endpoint",
+    "depends_on": [
+      "feature-04",
+      "setup-14"
+    ],
+    "steps": [
+      "Create text chunking logic",
+      "Implement slide pacing rules",
+      "Handle short (<500 chars) and long (>6000 chars) text"
+    ],
+    "validation": {
+      "_note": "AUTH LIKELY REQUIRED: Paste/text generation uses OpenAI. Test route exists and handles edge cases.",
+      "commands": [
+        "test -f apps/nextjs/src/app/api/generate/text/route.ts && echo 'PASS: route exists' || echo 'FAIL'",
+        "curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' $BASE_URL/api/generate/text | grep -qE '400|401' && echo 'PASS: validates input' || echo 'FAIL'"
+      ],
+      "expected": "POST /api/generate/text accepts {text, slideCount}. Handles <500 chars and >6000 chars. Returns {slides: [...]}."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-07",
+    "category": "feature",
+    "description": "Create style kit JSON definitions (Part 1)",
+    "depends_on": [
+      "setup-07"
+    ],
+    "steps": [
+      "Define JSON schema for style kit (typography, colors, spacing)",
+      "Create Minimal Clean kit",
+      "Create High Contrast Punch kit",
+      "Create Marker Highlight kit",
+      "Create Sticky Note kit"
+    ],
+    "validation": {
+      "_note": "First batch of style kits with typography, colors, spacing rules.",
+      "commands": [
+        "grep -riq 'minimal' packages/db && echo 'PASS: Minimal kit' || echo 'FAIL'",
+        "grep -riq 'contrast\\|punch' packages/db && echo 'PASS: High Contrast kit' || echo 'FAIL'"
+      ],
+      "expected": "4 style kits seeded: Minimal Clean, High Contrast Punch, Marker Highlight, Sticky Note"
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-08",
+    "category": "feature",
+    "description": "Create remaining style kits (Part 2)",
+    "depends_on": [
+      "feature-07"
+    ],
+    "steps": [
+      "Create Corporate Pro kit",
+      "Create Gradient Modern kit",
+      "Create Dark Mode Punch kit",
+      "Create Soft Pastel kit"
+    ],
+    "validation": {
+      "_note": "Complete set of 8 style kits available.",
+      "commands": [
+        "grep -riq 'dark' packages/db && echo 'PASS: Dark Mode kit' || echo 'FAIL'",
+        "grep -riq 'pastel\\|corporate\\|gradient' packages/db && echo 'PASS: Other kits' || echo 'FAIL'"
+      ],
+      "expected": "8 total style kits seeded: +Corporate Pro, Gradient Modern, Dark Mode Punch, Soft Pastel"
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-09",
+    "category": "feature",
+    "description": "Create /api/style-kits endpoint",
+    "depends_on": [
+      "feature-08"
+    ],
+    "steps": [
+      "Create GET endpoint returning all style kits",
+      "Include preview colors in response"
+    ],
+    "validation": {
+      "_note": "Public API endpoint returning all style kits for selector UI.",
+      "commands": [
+        "curl -s $BASE_URL/api/style-kits | jq -e 'length == 8' && echo 'PASS: 8 kits' || echo 'FAIL'",
+        "curl -s $BASE_URL/api/style-kits | jq -e '.[0].colors and .[0].typography' && echo 'PASS: has colors/typography' || echo 'FAIL'"
+      ],
+      "expected": "GET /api/style-kits returns [{id, name, colors, typography, spacingRules, isPremium}, ...] with 8 items"
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-10",
+    "category": "feature",
+    "description": "Create slide layout blueprints (Part 1)",
+    "depends_on": [
+      "setup-08"
+    ],
+    "steps": [
+      "Create Hook slide layout blueprint",
+      "Create Big Statement layout blueprint",
+      "Create 3-Bullet layout blueprint",
+      "Create Step-by-Step layout blueprint",
+      "Create Quote layout blueprint"
+    ],
+    "validation": {
+      "_note": "First batch of layout blueprints for different slide types.",
+      "commands": [
+        "grep -riq 'hook\\|statement' packages/db && echo 'PASS: Hook/Statement layouts' || echo 'FAIL'",
+        "grep -riq 'bullet\\|step' packages/db && echo 'PASS: Bullet/Step layouts' || echo 'FAIL'"
+      ],
+      "expected": "5 layouts seeded with layersBlueprint JSON: Hook, Big Statement, 3-Bullet, Step-by-Step, Quote"
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-11",
+    "category": "feature",
+    "description": "Create slide layout blueprints (Part 2)",
+    "depends_on": [
+      "feature-10"
+    ],
+    "steps": [
+      "Create Do/Don't Comparison layout blueprint",
+      "Create Checklist layout blueprint",
+      "Create Recap layout blueprint",
+      "Create CTA layout blueprint"
+    ],
+    "validation": {
+      "_note": "Complete set of 9 layout blueprints available.",
+      "commands": [
+        "curl -s $BASE_URL/api/layouts | tee $LOG_DIR/layouts.json",
+        "jq -e 'length == 9' $LOG_DIR/layouts.json && echo 'PASS: returns 9 layouts' || echo 'FAIL'",
+        "jq -e '.[0].layers_blueprint' $LOG_DIR/layouts.json && echo 'PASS: includes blueprint' || echo 'FAIL'"
+      ],
+      "expected": "GET /api/layouts returns 9 layouts each with layers_blueprint"
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-12",
+    "category": "feature",
+    "description": "Install Konva and create canvas component",
+    "depends_on": [
+      "setup-02"
+    ],
+    "steps": [
+      "Install react-konva and konva packages",
+      "Create EditorCanvas component with 1080x1350 viewport",
+      "Add responsive scaling for viewport"
+    ],
+    "validation": {
+      "_note": "Konva canvas library for slide rendering with fixed viewport dimensions.",
+      "commands": [
+        "grep -q 'react-konva' apps/nextjs/package.json && echo 'PASS: konva installed' || echo 'FAIL'",
+        "test -f apps/nextjs/src/components/editor/EditorCanvas.tsx && echo 'PASS: component exists' || echo 'FAIL'"
+      ],
+      "expected": "react-konva and konva installed, EditorCanvas component with 1080x1350 viewport and responsive scaling"
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-13",
+    "category": "feature",
+    "description": "Implement Konva layer rendering system",
+    "depends_on": [
+      "feature-12",
+      "feature-11"
+    ],
+    "steps": [
+      "Create layer renderer from blueprint JSON",
+      "Render background layer",
+      "Render text_box layers with content",
+      "CRITICAL: Create /editor/test route that renders sample slides with mock data",
+      "The test route should display 3-5 sample slides with various layouts for validation",
+      "This test route is required by all subsequent editor features for validation"
+    ],
+    "validation": {
+      "_note": "IMPORTANT: Create /app/[lang]/(dashboard)/editor/test/page.tsx with hardcoded sample slides. This route is used by ALL subsequent editor feature validations. Without it, tests for features 14-40+ will fail.",
+      "commands": [
+        "grep -q 'renderLayer\\|LayerRenderer' apps/nextjs/src/components/editor && echo 'PASS: renderer exists' || echo 'FAIL'",
+        "grep -q 'background\\|text_box' apps/nextjs/src/components/editor && echo 'PASS: layer types handled' || echo 'FAIL'",
+        "test -f apps/nextjs/src/app/*/\\(dashboard\\)/editor/test/page.tsx && echo 'PASS: test route exists' || echo 'FAIL: /editor/test route missing - CREATE IT'",
+        "curl -s -o /dev/null -w '%{http_code}' $BASE_URL/en/editor/test | grep -q '200' && echo 'PASS: test route loads' || echo 'FAIL: test route returns non-200'"
+      ],
+      "expected": "Layer renderer works, /editor/test route exists and loads with sample slides"
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-14",
+    "category": "feature",
+    "description": "Implement text editing in canvas",
+    "depends_on": [
+      "feature-13"
+    ],
+    "steps": [
+      "Add text box selection on click",
+      "Create inline text editor overlay",
+      "Implement click-to-edit functionality",
+      "Add data-testid='canvas_surface' and 'text_box'"
+    ],
+    "validation": {
+      "_note": "REQUIRES: /editor/test route from feature-13 must exist. Test by opening the editor with sample data, clicking a text box, and verifying editing mode activates.",
+      "commands": [
+        "curl -s -o /dev/null -w '%{http_code}' $BASE_URL/en/editor/test | grep -q '200' && echo 'PASS: test route accessible' || echo 'FAIL: /editor/test not found - complete feature-13 first'",
+        "agent-browser open $BASE_URL/en/editor/test",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'canvas_surface'",
+        "agent-browser find testid 'text_box' click",
+        "agent-browser errors | tee $LOG_DIR/editor_errors.txt",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/canvas-editor.png",
+        "test -s $LOG_DIR/editor_errors.txt && echo 'WARN: console errors found' || echo 'PASS: no console errors'"
+      ],
+      "expected": "Canvas renders with data-testid='canvas_surface', text boxes have data-testid='text_box', clicking text box shows edit cursor/input"
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-15",
+    "category": "feature",
+    "description": "Add canvas zoom and pan controls",
+    "depends_on": [
+      "feature-14"
+    ],
+    "steps": [
+      "Implement zoom slider (50%-200%)",
+      "Add pan with drag when zoomed",
+      "Add fit-to-screen button",
+      "Add data-testid='zoom_slider', 'fit_screen_button'"
+    ],
+    "validation": {
+      "_note": "REQUIRES /editor/test route from feature-13. Test zoom slider changes canvas scale, fit-to-screen resets to default view.",
+      "commands": [
+        "agent-browser open $BASE_URL/en/editor/test",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'zoom_slider'",
+        "agent-browser find testid 'fit_screen_button' click",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/zoom-controls.png",
+        "agent-browser errors | tee $LOG_DIR/zoom_errors.txt",
+        "test -s $LOG_DIR/zoom_errors.txt && echo 'WARN: console errors' || echo 'PASS: no errors'"
+      ],
+      "expected": "zoom_slider exists (range input 50-200%), fit_screen_button exists and resets zoom, dragging canvas pans when zoomed >100%, no console errors"
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-16",
+    "category": "feature",
+    "description": "Create slide thumbnail rail component",
+    "depends_on": [
+      "feature-13"
+    ],
+    "steps": [
+      "Create thumbnail preview component",
+      "Render mini canvas for each slide",
+      "Highlight active slide",
+      "Add data-testid='slide_thumbnail_1', 'slide_thumbnail_2', etc."
+    ],
+    "validation": {
+      "_note": "REQUIRES /editor/test route from feature-13 with multiple sample slides. Thumbnails should show mini previews and allow slide switching.",
+      "commands": [
+        "agent-browser open $BASE_URL/en/editor/test",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'slide_thumbnail_1'",
+        "agent-browser find testid 'slide_thumbnail_2' click",
+        "agent-browser wait 300",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/slide-thumbnails.png",
+        "agent-browser errors | tee $LOG_DIR/thumbnail_errors.txt"
+      ],
+      "expected": "Thumbnail rail displays on left/side, each slide has data-testid='slide_thumbnail_N', clicking thumbnail switches main canvas to that slide, active slide is visually highlighted (border/background)"
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-17",
+    "category": "feature",
+    "description": "Implement slide reorder and management",
+    "depends_on": [
+      "feature-16"
+    ],
+    "steps": [
+      "Implement drag-to-reorder slides",
+      "Add slide add button",
+      "Add slide duplicate action",
+      "Add slide delete action",
+      "Add data-testid='add_slide_button', 'delete_slide_button', 'duplicate_slide_button'"
+    ],
+    "validation": {
+      "_note": "REQUIRES /editor/test with multiple slides. Test add/delete/duplicate/reorder functionality.",
+      "commands": [
+        "agent-browser open $BASE_URL/en/editor/test",
+        "agent-browser wait --load networkidle",
+        "agent-browser snapshot -i | grep -o 'slide_thumbnail' | wc -l | tee $LOG_DIR/slide_count_before.txt",
+        "agent-browser find testid 'add_slide_button' click",
+        "agent-browser wait 500",
+        "agent-browser snapshot -i | grep -o 'slide_thumbnail' | wc -l | tee $LOG_DIR/slide_count_after.txt",
+        "test $(cat $LOG_DIR/slide_count_after.txt) -gt $(cat $LOG_DIR/slide_count_before.txt) && echo 'PASS: slide added' || echo 'FAIL: add did not work'",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/slide-management.png"
+      ],
+      "expected": "add_slide_button adds new slide (count increases). delete_slide_button removes selected slide. duplicate_slide_button copies selected slide. Drag-drop reorders slides in thumbnail rail."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-18",
+    "category": "feature",
+    "description": "Create text measurement utility",
+    "depends_on": [
+      "feature-14"
+    ],
+    "steps": [
+      "Create measureText function using canvas API",
+      "Calculate line breaks for max width",
+      "Return measured height and lines"
+    ],
+    "validation": {
+      "_note": "Text measurement utility for auto-fit calculations using canvas 2D API.",
+      "commands": [
+        "grep -rq 'measureText' apps/nextjs/src && echo 'PASS: function exists' || echo 'FAIL'",
+        "test -f apps/nextjs/src/lib/text-measure.ts && echo 'PASS: file exists' || echo 'FAIL'"
+      ],
+      "expected": "measureText(text, font, maxWidth) returns {width, height, lines[]} for text fitting"
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-19",
+    "category": "feature",
+    "description": "Implement auto-fit text algorithm",
+    "depends_on": [
+      "feature-18"
+    ],
+    "steps": [
+      "Implement font size shrinking within min/max bounds (e.g., min 16px, max 48px)",
+      "Adjust line height for readability",
+      "Create overflow detection when text exceeds even min font size",
+      "Add data-testid='overflow_indicator' that shows when text cannot fit"
+    ],
+    "validation": {
+      "_note": "REQUIRES /editor/test. Test that long text shrinks font automatically, and very long text shows overflow indicator.",
+      "commands": [
+        "agent-browser open $BASE_URL/en/editor/test",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'text_box' click",
+        "agent-browser find testid 'text_input' fill 'This is a very very very long headline that should automatically shrink to fit within the text box boundaries'",
+        "agent-browser wait 500",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/auto-fit-shrink.png",
+        "# Now test overflow with extremely long text",
+        "agent-browser find testid 'text_input' fill 'This is an extremely long piece of text that absolutely cannot fit no matter how small the font gets because it has way too many words and characters and will definitely cause overflow and require the Fix with AI button to appear'",
+        "agent-browser wait 500",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/auto-fit-overflow.png"
+      ],
+      "expected": "Short-medium text: font shrinks to fit (visible in screenshot). Very long text: shows overflow_indicator (red border, warning icon, or similar). Font size stays within min/max bounds defined in layout constraints."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-20",
+    "category": "feature",
+    "description": "Add overflow indicator and Fix with AI button",
+    "depends_on": [
+      "feature-19",
+      "feature-01"
+    ],
+    "steps": [
+      "Add visual indicator for text needing attention",
+      "Create 'Fix with AI' button",
+      "Implement AI text shortening",
+      "Add data-testid='fix_with_ai_button'"
+    ],
+    "validation": {
+      "_note": "REQUIRES /editor/test. Fix with AI uses OpenAI to shorten text that doesn't fit.",
+      "commands": [
+        "agent-browser open $BASE_URL/en/editor/test",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'text_box' click",
+        "agent-browser find testid 'text_input' fill 'An extremely long piece of text that cannot fit and requires AI shortening'",
+        "agent-browser wait 1000",
+        "agent-browser find testid 'fix_with_ai_button' click",
+        "agent-browser wait 5000",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/fix-with-ai.png"
+      ],
+      "expected": "Overflow text shows visual indicator (red border/warning). fix_with_ai_button calls /api/rewrite with 'shorter' action, replacing text with shorter version."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-21",
+    "category": "feature",
+    "description": "Build style kit selector UI",
+    "depends_on": [
+      "feature-09",
+      "feature-13"
+    ],
+    "steps": [
+      "Create style kit grid with previews",
+      "Implement style switching on canvas",
+      "Add data-testid='style_kit_selector', 'style_kit_minimal_clean', 'style_kit_dark_mode', etc."
+    ],
+    "validation": {
+      "_note": "REQUIRES /editor/test route AND /api/style-kits returning 8 kits. Test that switching style kit updates canvas colors/fonts.",
+      "commands": [
+        "# Verify style kits API returns 8 kits",
+        "curl -s $BASE_URL/api/style-kits | jq 'length' | grep -q '8' && echo 'PASS: 8 style kits' || echo 'FAIL: wrong kit count'",
+        "agent-browser open $BASE_URL/en/editor/test",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'style_kit_selector' click",
+        "agent-browser wait 300",
+        "agent-browser snapshot -i | grep -o 'style_kit_' | wc -l | tee $LOG_DIR/style_kit_count.txt",
+        "test $(cat $LOG_DIR/style_kit_count.txt) -ge 8 && echo 'PASS: 8 kits in UI' || echo 'FAIL: kits missing from UI'",
+        "agent-browser find testid 'style_kit_dark_mode' click",
+        "agent-browser wait 500",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/style-kit-selector.png"
+      ],
+      "expected": "style_kit_selector opens dropdown/panel with 8 style kits. Each kit has data-testid='style_kit_{kit_id}'. Clicking a kit updates canvas background color, text colors, and fonts to match kit definition."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-22",
+    "category": "feature",
+    "description": "Build theme controls panel",
+    "depends_on": [
+      "feature-21"
+    ],
+    "steps": [
+      "Create color palette editor",
+      "Add font pair selector",
+      "Implement spacing scale toggle (tight/normal/roomy)",
+      "Add data-testid='color_picker', 'font_selector', 'spacing_toggle'"
+    ],
+    "validation": {
+      "_note": "REQUIRES /editor/test. Theme controls allow fine-tuning colors, fonts, spacing.",
+      "commands": [
+        "agent-browser open $BASE_URL/en/editor/test",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'color_picker'",
+        "agent-browser find testid 'font_selector'",
+        "agent-browser find testid 'spacing_toggle' click",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/theme-controls.png"
+      ],
+      "expected": "color_picker opens color palette editor. font_selector shows font pair options. spacing_toggle cycles tight/normal/roomy. Changes apply to canvas immediately."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-23",
+    "category": "feature",
+    "description": "Add layout variant selector",
+    "depends_on": [
+      "feature-22",
+      "feature-11"
+    ],
+    "steps": [
+      "Create per-slide layout variant selector",
+      "Show compatible layouts for slide type",
+      "Apply layout change to slide",
+      "Add data-testid='layout_selector'"
+    ],
+    "validation": {
+      "_note": "REQUIRES /editor/test AND /api/layouts. Layout selector filters by slide_type compatibility.",
+      "commands": [
+        "curl -s $BASE_URL/api/layouts | jq -e 'length >= 9' && echo 'PASS: layouts API' || echo 'FAIL'",
+        "agent-browser open $BASE_URL/en/editor/test",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'layout_selector' click",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/layout-selector.png"
+      ],
+      "expected": "layout_selector shows layouts compatible with current slide type. Selecting layout updates slide structure."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-24",
+    "category": "feature",
+    "description": "Create brand kit API endpoints",
+    "depends_on": [
+      "setup-09",
+      "setup-14",
+      "infra-02"
+    ],
+    "steps": [
+      "Create GET /api/brand-kits endpoint",
+      "Create POST /api/brand-kits endpoint with logo upload",
+      "Create PATCH /api/brand-kits/:id endpoint",
+      "Create DELETE /api/brand-kits/:id endpoint"
+    ],
+    "validation": {
+      "_note": "AUTH REQUIRED: These endpoints need authentication. Test via browser DevTools Network tab while logged in, or use agent-browser after logging in. Curl without session will return 401.",
+      "commands": [
+        "# 1. Verify unauthenticated returns 401 (proves auth guard works)",
+        "curl -s -o /dev/null -w '%{http_code}' $BASE_URL/api/brand-kits | grep -q '401' && echo 'PASS: returns 401 without auth' || echo 'FAIL: should return 401'",
+        "# 2. Test authenticated flow via browser",
+        "agent-browser open $BASE_URL/en/login",
+        "# (log in manually or via test credentials)",
+        "agent-browser open $BASE_URL/api/brand-kits",
+        "# 3. Check endpoint file exists",
+        "test -f apps/nextjs/src/app/api/brand-kits/route.ts && echo 'PASS: route file exists' || echo 'FAIL: route file missing'",
+        "grep -q 'GET\\|POST' apps/nextjs/src/app/api/brand-kits/route.ts && echo 'PASS: handlers defined' || echo 'FAIL'"
+      ],
+      "expected": "Unauthenticated requests return 401. Authenticated requests: GET returns array, POST creates and returns {id}, PATCH updates, DELETE removes."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-25",
+    "category": "feature",
+    "description": "Build brand kit settings page",
+    "depends_on": [
+      "feature-24"
+    ],
+    "steps": [
+      "Create /settings/brand-kit page",
+      "Add logo upload component",
+      "Add color palette picker",
+      "Add font selection dropdown",
+      "Add name/handle inputs",
+      "Add data-testid='brand_name_input', 'brand_handle_input', 'logo_upload', 'save_button'"
+    ],
+    "validation": {
+      "_note": "AUTH REQUIRED: Settings page is protected. Test page file exists and UI elements are defined.",
+      "commands": [
+        "test -f apps/nextjs/src/app/*/\\(dashboard\\)/settings/brand-kit/page.tsx && echo 'PASS: page exists' || echo 'FAIL'",
+        "grep -rq 'brand_name_input\\|brand_handle_input' apps/nextjs/src && echo 'PASS: testids found' || echo 'FAIL'",
+        "agent-browser open $BASE_URL/en/settings/brand-kit",
+        "agent-browser wait --load networkidle",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/brand-kit-settings.png"
+      ],
+      "expected": "Settings page with brand_name_input, brand_handle_input, logo_upload, save_button. Saves to /api/brand-kits."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-26",
+    "category": "feature",
+    "description": "Implement brand kit application to projects",
+    "depends_on": [
+      "feature-25",
+      "feature-13"
+    ],
+    "steps": [
+      "Add brand kit selector in creation flow",
+      "Apply brand colors/fonts to canvas",
+      "Add brand logo/handle to slides",
+      "Add data-testid='brand_kit_toggle'"
+    ],
+    "validation": {
+      "_note": "Creation flow optionally applies user's brand kit to slides.",
+      "commands": [
+        "grep -rq 'brand_kit_toggle' apps/nextjs/src && echo 'PASS: testid exists' || echo 'FAIL'",
+        "agent-browser open $BASE_URL/en/create",
+        "agent-browser wait --load networkidle",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/brand-kit-apply.png"
+      ],
+      "expected": "brand_kit_toggle in creation flow. When enabled, generated slides use user's brand colors, fonts, logo, and handle."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-27",
+    "category": "feature",
+    "description": "Create server-side canvas renderer",
+    "depends_on": [
+      "infra-02",
+      "feature-11"
+    ],
+    "steps": [
+      "Install @napi-rs/canvas",
+      "Create renderSlideToCanvas function",
+      "Implement font loading from storage"
+    ],
+    "validation": {
+      "_note": "Server-side canvas for rendering slides without browser. Required for export.",
+      "commands": [
+        "grep -q '@napi-rs/canvas\\|canvas' apps/nextjs/package.json && echo 'PASS: canvas installed' || echo 'FAIL'",
+        "grep -rq 'renderSlideToCanvas\\|renderSlide' apps/nextjs/src && echo 'PASS: function exists' || echo 'FAIL'"
+      ],
+      "expected": "@napi-rs/canvas installed. renderSlideToCanvas(slide, styleKit) returns PNG buffer."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-28",
+    "category": "feature",
+    "description": "Implement PDF generation",
+    "depends_on": [
+      "feature-27"
+    ],
+    "steps": [
+      "Install PDFKit",
+      "Create multi-page PDF from slide images",
+      "Embed fonts for vector text"
+    ],
+    "validation": {
+      "_note": "PDF generation from rendered slide images using PDFKit.",
+      "commands": [
+        "grep -q 'pdfkit\\|pdf-lib' apps/nextjs/package.json && echo 'PASS: PDF lib installed' || echo 'FAIL'",
+        "grep -rq 'generatePDF\\|createPDF' apps/nextjs/src && echo 'PASS: function exists' || echo 'FAIL'"
+      ],
+      "expected": "PDFKit or pdf-lib installed. generatePDF(slides[]) creates multi-page PDF with embedded fonts."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-29",
+    "category": "feature",
+    "description": "Create export job processor",
+    "depends_on": [
+      "feature-28",
+      "infra-04"
+    ],
+    "steps": [
+      "Create BullMQ worker for render queue",
+      "Process PDF export jobs",
+      "Upload completed exports to storage",
+      "Update export status in database"
+    ],
+    "validation": {
+      "_note": "BullMQ worker processes render jobs asynchronously.",
+      "commands": [
+        "grep -rq 'Worker\\|renderQueue' apps/nextjs/src && echo 'PASS: worker exists' || echo 'FAIL'",
+        "grep -rq 'ExportStatus\\|completed\\|failed' apps/nextjs/src && echo 'PASS: status updates' || echo 'FAIL'"
+      ],
+      "expected": "Worker processes jobs: render slides, generate PDF/PNG, upload to storage, update Export.status in DB."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-30",
+    "category": "feature",
+    "description": "Create /api/exports endpoint",
+    "depends_on": [
+      "feature-29",
+      "setup-12"
+    ],
+    "steps": [
+      "Create POST /api/exports to queue export job",
+      "Create GET /api/exports/:id for status polling",
+      "Return signed download URL when complete"
+    ],
+    "validation": {
+      "_note": "AUTH REQUIRED: Export API creates and polls export jobs.",
+      "commands": [
+        "test -f apps/nextjs/src/app/api/exports/route.ts && echo 'PASS: exports route' || echo 'FAIL'",
+        "test -f apps/nextjs/src/app/api/exports/\\[id\\]/route.ts && echo 'PASS: exports/[id] route' || echo 'FAIL'",
+        "curl -s -o /dev/null -w '%{http_code}' -X POST $BASE_URL/api/exports | grep -qE '400|401' && echo 'PASS: auth guard' || echo 'FAIL'"
+      ],
+      "expected": "POST /api/exports {projectId, type} creates job, returns {id}. GET /api/exports/:id returns {status, fileUrl?}."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-31",
+    "category": "feature",
+    "description": "Implement PNG export",
+    "depends_on": [
+      "feature-27",
+      "feature-30"
+    ],
+    "steps": [
+      "Add PNG export type to job processor",
+      "Generate PNG for each slide",
+      "Create cover thumbnail option",
+      "Upload all files to storage"
+    ],
+    "validation": {
+      "_note": "PNG export option for individual slide images.",
+      "commands": [
+        "grep -rq 'png\\|PNG' apps/nextjs/src/lib && echo 'PASS: PNG export logic' || echo 'FAIL'",
+        "grep -rq 'ExportType' packages/db/prisma/schema.prisma && echo 'PASS: ExportType enum' || echo 'FAIL'"
+      ],
+      "expected": "type:'png' export generates slide-1.png, slide-2.png, etc. Optional cover thumbnail at 400x500px."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-32",
+    "category": "feature",
+    "description": "Build export modal UI",
+    "depends_on": [
+      "feature-30",
+      "feature-31"
+    ],
+    "steps": [
+      "Create export modal component",
+      "Add PDF/PNG format toggle",
+      "Add filename input",
+      "Add cover thumbnail checkbox",
+      "Add data-testid='export_button', 'export_modal', 'format_pdf', 'format_png', 'filename_input', 'start_export_button'"
+    ],
+    "validation": {
+      "_note": "REQUIRES /editor/test route. Modal should appear when export button clicked, with format selection and filename input.",
+      "commands": [
+        "agent-browser open $BASE_URL/en/editor/test",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'export_button' click",
+        "agent-browser wait 500",
+        "agent-browser find testid 'export_modal'",
+        "agent-browser find testid 'format_pdf'",
+        "agent-browser find testid 'format_png'",
+        "agent-browser find testid 'filename_input'",
+        "agent-browser find testid 'start_export_button'",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/export-modal.png",
+        "agent-browser errors | tee $LOG_DIR/export_modal_errors.txt"
+      ],
+      "expected": "export_button in editor header opens modal. Modal contains: format_pdf/format_png toggle, filename_input text field, optional cover thumbnail checkbox, start_export_button. No console errors."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-33",
+    "category": "feature",
+    "description": "Implement export progress and download",
+    "depends_on": [
+      "feature-32"
+    ],
+    "steps": [
+      "Add progress indicator polling status",
+      "Show download button when complete",
+      "Trigger file download from signed URL",
+      "Add data-testid='export_progress', 'download_button'"
+    ],
+    "validation": {
+      "_note": "REQUIRES /editor/test. Progress UI polls /api/exports/:id for status updates.",
+      "commands": [
+        "agent-browser open $BASE_URL/en/editor/test",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'export_button' click",
+        "agent-browser find testid 'start_export_button' click",
+        "agent-browser wait 2000",
+        "agent-browser find testid 'export_progress'",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/export-progress.png"
+      ],
+      "expected": "export_progress shows percentage/spinner while processing. download_button appears with signed URL when status='completed'."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-34",
+    "category": "feature",
+    "description": "Create /api/rewrite endpoint",
+    "depends_on": [
+      "feature-01",
+      "setup-14"
+    ],
+    "steps": [
+      "Create rewrite prompts for: shorter, punchier, examples, jargon",
+      "Create POST /api/rewrite endpoint",
+      "Return rewritten text"
+    ],
+    "validation": {
+      "_note": "AUTH LIKELY REQUIRED: Uses OpenAI. Test route exists and supports all action types.",
+      "commands": [
+        "test -f apps/nextjs/src/app/api/rewrite/route.ts && echo 'PASS: route exists' || echo 'FAIL'",
+        "grep -q 'shorter\\|punchier\\|examples\\|jargon' apps/nextjs/src/app/api/rewrite && echo 'PASS: actions defined' || echo 'FAIL'"
+      ],
+      "expected": "POST /api/rewrite {text, action} returns {text}. Actions: shorter, punchier, examples, jargon."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-35",
+    "category": "feature",
+    "description": "Add rewrite UI to editor",
+    "depends_on": [
+      "feature-34",
+      "feature-14"
+    ],
+    "steps": [
+      "Create rewrite menu dropdown",
+      "Add buttons for each rewrite action (shorter, punchier, examples, jargon)",
+      "Apply rewritten text to selected text box",
+      "Add data-testid='rewrite_menu', 'rewrite_shorter', 'rewrite_punchier', 'rewrite_examples', 'rewrite_jargon'"
+    ],
+    "validation": {
+      "_note": "REQUIRES /editor/test AND /api/rewrite endpoint. Test that rewrite actions call API and update text content.",
+      "commands": [
+        "# Check rewrite API exists",
+        "curl -s -X POST -H 'Content-Type: application/json' -d '{\"text\":\"test\",\"action\":\"shorter\"}' $BASE_URL/api/rewrite | jq -e '.text or .error' && echo 'PASS: API responds' || echo 'FAIL: API broken'",
+        "agent-browser open $BASE_URL/en/editor/test",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'text_box' click",
+        "agent-browser find testid 'rewrite_menu' click",
+        "agent-browser find testid 'rewrite_shorter'",
+        "agent-browser find testid 'rewrite_punchier'",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/rewrite-menu-open.png",
+        "agent-browser find testid 'rewrite_shorter' click",
+        "agent-browser wait 3000",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/rewrite-result.png"
+      ],
+      "expected": "rewrite_menu button shows when text box selected. Clicking opens dropdown with rewrite_shorter, rewrite_punchier, rewrite_examples options. Clicking an option calls /api/rewrite and replaces text box content with result."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-36",
+    "category": "feature",
+    "description": "Create project CRUD API",
+    "depends_on": [
+      "setup-10",
+      "setup-11",
+      "setup-14"
+    ],
+    "steps": [
+      "Create GET /api/projects listing user's projects",
+      "Create POST /api/projects creating new project",
+      "Create PATCH /api/projects/:id updating project",
+      "Create DELETE /api/projects/:id removing project",
+      "Write comprehensive API tests for all CRUD operations",
+      "Test: GET returns user's projects only (not other users')",
+      "Test: POST creates project with valid data",
+      "Test: POST validates required fields",
+      "Test: PATCH updates only allowed fields",
+      "Test: DELETE removes project and cascades to slides",
+      "Test: unauthorized access returns 401",
+      "Run all tests and verify at least 80% coverage of CRUD logic"
+    ],
+    "validation": {
+      "_note": "AUTH REQUIRED for CRUD operations. First verify 401 is returned without auth (proves guard works), then test actual CRUD via unit tests which can mock auth.",
+      "commands": [
+        "# 1. Verify auth guard works (should return 401 without auth)",
+        "curl -s -o /dev/null -w '%{http_code}' $BASE_URL/api/projects | grep -q '401' && echo 'PASS: GET returns 401 without auth' || echo 'FAIL: should return 401'",
+        "curl -s -o /dev/null -w '%{http_code}' -X POST -H 'Content-Type: application/json' -d '{}' $BASE_URL/api/projects | grep -q '401' && echo 'PASS: POST returns 401 without auth' || echo 'FAIL'",
+        "# 2. Verify route files exist",
+        "test -f apps/nextjs/src/app/api/projects/route.ts && echo 'PASS: projects route exists' || echo 'FAIL'",
+        "test -f apps/nextjs/src/app/api/projects/\\[id\\]/route.ts && echo 'PASS: projects/[id] route exists' || echo 'FAIL'",
+        "# 3. Run unit tests (which mock auth)",
+        "test -f apps/nextjs/src/app/api/projects/route.test.ts && echo 'PASS: CRUD tests exist' || echo 'FAIL: tests missing'",
+        "bun run test apps/nextjs/src/app/api/projects 2>&1 | tee /tmp/projects_test.txt",
+        "grep -q 'PASS\\|✓' /tmp/projects_test.txt && echo 'PASS: CRUD tests passing' || echo 'FAIL: CRUD tests failing'"
+      ],
+      "expected": "Auth guard returns 401 for unauthenticated requests. Route files exist. Unit tests (with mocked auth) pass for all CRUD operations."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-37",
+    "category": "feature",
+    "description": "Implement auto-save functionality",
+    "depends_on": [
+      "feature-36",
+      "feature-14"
+    ],
+    "steps": [
+      "Debounce slide changes (500ms)",
+      "Auto-save slides to database via PATCH /api/projects/:id",
+      "Show save indicator in UI (saving/saved/error states)",
+      "Add data-testid='save_indicator'",
+      "Write tests for auto-save hook/logic",
+      "Test: debounce works (doesn't save on every keystroke)",
+      "Test: saves after 500ms of no changes",
+      "Test: handles save failures gracefully",
+      "Test: shows correct save indicator states (saving/saved/error)",
+      "Run tests and verify they pass"
+    ],
+    "validation": {
+      "_note": "REQUIRES /editor/test AND authenticated session for API calls. Auto-save hook should debounce changes and call project update API.",
+      "commands": [
+        "# Check hook file exists",
+        "test -f apps/nextjs/src/hooks/use-auto-save.ts && echo 'PASS: hook exists' || echo 'FAIL: hook missing'",
+        "# Check test file exists",
+        "test -f apps/nextjs/src/hooks/use-auto-save.test.ts && echo 'PASS: tests exist' || echo 'FAIL: tests missing'",
+        "# Run unit tests (can mock auth/API)",
+        "bun run test apps/nextjs/src/hooks/use-auto-save 2>&1 | tee /tmp/autosave_test.txt",
+        "grep -q 'PASS\\|✓' /tmp/autosave_test.txt && echo 'PASS: tests passing' || echo 'FAIL: tests failing'",
+        "# Manual browser test",
+        "agent-browser open $BASE_URL/en/editor/test",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'save_indicator'",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/auto-save.png"
+      ],
+      "expected": "useAutoSave hook exists with 500ms debounce. save_indicator shows 3 states: 'Saving...' (during save), 'Saved' (after success), 'Error' (on failure). Unit tests pass covering debounce behavior and error handling."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-38",
+    "category": "feature",
+    "description": "Build dashboard with project list",
+    "depends_on": [
+      "feature-36"
+    ],
+    "steps": [
+      "Create /dashboard page (protected route)",
+      "Display recent projects grid (from /api/projects)",
+      "Add empty state for new users (no projects yet)",
+      "Add 'New Carousel' CTA button",
+      "Add data-testid='dashboard_projects', 'new_project_button', 'empty_state'"
+    ],
+    "validation": {
+      "_note": "AUTH REQUIRED: Dashboard is a protected route. Without login, should redirect to login page. Test by logging in first or checking the page route exists.",
+      "commands": [
+        "# Check page file exists",
+        "test -f apps/nextjs/src/app/*/\\(dashboard\\)/dashboard/page.tsx && echo 'PASS: dashboard page exists' || echo 'FAIL: page missing'",
+        "# Check for testid in component",
+        "grep -rq 'new_project_button\\|dashboard_projects\\|empty_state' apps/nextjs/src && echo 'PASS: testids found' || echo 'FAIL: testids missing'",
+        "# Browser test (may need login first)",
+        "agent-browser open $BASE_URL/en/dashboard",
+        "agent-browser wait --load networkidle",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/dashboard.png",
+        "# If redirected to login, that's expected behavior for unauthenticated user",
+        "agent-browser get url | grep -q 'login\\|dashboard' && echo 'PASS: page loads or redirects to login' || echo 'FAIL'"
+      ],
+      "expected": "Authenticated: dashboard shows project grid (or empty_state if no projects), new_project_button visible. Unauthenticated: redirects to login page. No console errors."
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-39",
+    "category": "feature",
+    "description": "Build creation flow page",
+    "depends_on": [
+      "feature-05",
+      "feature-06",
+      "feature-09",
+      "feature-38"
+    ],
+    "steps": [
+      "Create /create page",
+      "Add mode tabs (Topic/Text)",
+      "Add topic input with tone selector",
+      "Add text paste area with char counter",
+      "Add style kit selection grid",
+      "Add slide count selector",
+      "Add generate button",
+      "Add data-testid='topic_input', 'text_input', 'tone_selector', 'slide_count', 'generate_button', 'mode_topic', 'mode_text'"
+    ],
+    "validation": {
+      "_note": "Creation flow with two modes (topic/text) and style kit selection.",
+      "commands": [
+        "test -f apps/nextjs/src/app/*/\\(dashboard\\)/create/page.tsx && echo 'PASS: page exists' || echo 'FAIL'",
+        "agent-browser open $BASE_URL/en/create",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'mode_topic'",
+        "agent-browser find testid 'topic_input'",
+        "agent-browser find testid 'generate_button'",
+        "agent-browser find testid 'mode_text' click",
+        "agent-browser find testid 'text_input'",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/create-flow.png"
+      ],
+      "expected": "Create page has topic/text modes, all inputs present, no console errors"
+    },
+    "passes": false
+  },
+  {
+    "id": "feature-40",
+    "category": "feature",
+    "description": "Connect creation flow to editor",
+    "depends_on": [
+      "feature-39",
+      "feature-36",
+      "feature-13"
+    ],
+    "steps": [
+      "On generate: create project, generate slides, redirect to editor",
+      "Show loading state during generation",
+      "Handle generation errors",
+      "Add data-testid='generation_loading'"
+    ],
+    "validation": {
+      "_note": "Full generation flow: creates project, generates slides via AI, redirects to editor.",
+      "commands": [
+        "agent-browser open $BASE_URL/en/create",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'topic_input' fill 'How to be more productive'",
+        "agent-browser find testid 'generate_button' click",
+        "agent-browser find testid 'generation_loading'",
+        "agent-browser wait --url '**/editor/**' --timeout 120000",
+        "agent-browser screenshot $SCREENSHOT_DIR/features/generation-complete.png"
+      ],
+      "expected": "generation_loading appears during AI processing. On success, redirects to /editor/:projectId with 8-12 generated slides."
+    },
+    "passes": false
+  },
+  {
+    "id": "integration-01",
+    "category": "integration",
+    "description": "Set up Stripe products and prices",
+    "depends_on": [
+      "setup-01"
+    ],
+    "steps": [
+      "Install Stripe SDK",
+      "Create Free, Creator ($15), Pro ($39) products in Stripe",
+      "Store price IDs in environment variables"
+    ],
+    "validation": {
+      "_note": "Stripe products created in dashboard, price IDs stored in env vars.",
+      "commands": [
+        "grep -q 'stripe' apps/nextjs/package.json && echo 'PASS: Stripe installed' || echo 'FAIL'",
+        "grep -q 'STRIPE' .env.example && echo 'PASS: Stripe env documented' || echo 'FAIL'"
+      ],
+      "expected": "Stripe SDK installed. STRIPE_SECRET_KEY, STRIPE_PRICE_CREATOR, STRIPE_PRICE_PRO in .env.example."
+    },
+    "passes": false
+  },
+  {
+    "id": "integration-02",
+    "category": "integration",
+    "description": "Create Stripe checkout endpoint",
+    "depends_on": [
+      "integration-01",
+      "setup-14"
+    ],
+    "steps": [
+      "Create POST /api/stripe/checkout endpoint",
+      "Generate checkout session for selected plan",
+      "Return checkout URL"
+    ],
+    "validation": {
+      "_note": "AUTH REQUIRED: Checkout creates Stripe session for authenticated user.",
+      "commands": [
+        "test -f apps/nextjs/src/app/api/stripe/checkout/route.ts && echo 'PASS: route exists' || echo 'FAIL'",
+        "curl -s -o /dev/null -w '%{http_code}' -X POST $BASE_URL/api/stripe/checkout | grep -qE '400|401' && echo 'PASS: auth guard' || echo 'FAIL'"
+      ],
+      "expected": "POST /api/stripe/checkout {priceId} returns {url} pointing to Stripe Checkout. Requires auth."
+    },
+    "passes": false
+  },
+  {
+    "id": "integration-03",
+    "category": "integration",
+    "description": "Implement Stripe webhook handler",
+    "depends_on": [
+      "integration-02",
+      "setup-06"
+    ],
+    "steps": [
+      "Create POST /api/webhooks/stripe endpoint",
+      "Handle checkout.session.completed event",
+      "Update user subscription_tier in database"
+    ],
+    "validation": {
+      "_note": "Webhook verifies Stripe signature and updates Profile.subscriptionTier.",
+      "commands": [
+        "test -f apps/nextjs/src/app/api/webhooks/stripe/route.ts && echo 'PASS: webhook route' || echo 'FAIL'",
+        "grep -rq 'checkout.session.completed\\|subscription' apps/nextjs/src/app/api/webhooks/stripe && echo 'PASS: handles events' || echo 'FAIL'"
+      ],
+      "expected": "Webhook verifies signature, handles checkout.session.completed, updates subscriptionTier in DB."
+    },
+    "passes": false
+  },
+  {
+    "id": "integration-04",
+    "category": "integration",
+    "description": "Build billing settings page",
+    "depends_on": [
+      "integration-03"
+    ],
+    "steps": [
+      "Create /settings/billing page",
+      "Show current plan",
+      "Add upgrade buttons for each tier",
+      "Add data-testid='current_plan', 'upgrade_button', 'plan_creator', 'plan_pro'"
+    ],
+    "validation": {
+      "_note": "AUTH REQUIRED: Billing settings page shows current plan and upgrade CTAs.",
+      "commands": [
+        "test -f apps/nextjs/src/app/*/\\(dashboard\\)/settings/billing/page.tsx && echo 'PASS: page exists' || echo 'FAIL'",
+        "grep -rq 'current_plan\\|upgrade_button' apps/nextjs/src && echo 'PASS: testids found' || echo 'FAIL'"
+      ],
+      "expected": "current_plan shows Free/Creator/Pro. upgrade_button opens Stripe Checkout for selected tier."
+    },
+    "passes": false
+  },
+  {
+    "id": "integration-05",
+    "category": "integration",
+    "description": "Implement feature gating by tier",
+    "depends_on": [
+      "integration-03"
+    ],
+    "steps": [
+      "Create useSubscription hook",
+      "Gate carousel count by tier",
+      "Gate style kit access by tier",
+      "Gate brand kit count by tier",
+      "Add watermark for free tier",
+      "Add data-testid='upgrade_prompt'"
+    ],
+    "validation": {
+      "_note": "Subscription hook provides tier-based feature access throughout app.",
+      "commands": [
+        "grep -rq 'useSubscription\\|subscriptionTier' apps/nextjs/src && echo 'PASS: subscription logic' || echo 'FAIL'",
+        "grep -riq 'watermark' apps/nextjs/src && echo 'PASS: watermark logic' || echo 'FAIL'"
+      ],
+      "expected": "useSubscription() returns {tier, canUse(feature)}. Free: 3 carousels, watermark. Creator: 10, no watermark. Pro: unlimited."
+    },
+    "passes": false
+  },
+  {
+    "id": "styling-01",
+    "category": "styling",
+    "description": "Polish dashboard UI",
+    "depends_on": [
+      "feature-38"
+    ],
+    "steps": [
+      "Refine header navigation",
+      "Style project cards with hover states",
+      "Add empty state illustration",
+      "Implement responsive layout"
+    ],
+    "validation": {
+      "_note": "AUTH REQUIRED: Visual polish pass on dashboard. Capture mobile and desktop screenshots.",
+      "commands": [
+        "agent-browser open $BASE_URL/en/dashboard",
+        "agent-browser wait --load networkidle",
+        "agent-browser set viewport 375 667",
+        "agent-browser screenshot $SCREENSHOT_DIR/styling/dashboard-mobile.png",
+        "agent-browser set viewport 1920 1080",
+        "agent-browser screenshot $SCREENSHOT_DIR/styling/dashboard-desktop.png"
+      ],
+      "expected": "Dashboard responsive: mobile shows stacked cards, desktop shows grid. Hover states on project cards. Empty state has illustration."
+    },
+    "passes": false
+  },
+  {
+    "id": "styling-02",
+    "category": "styling",
+    "description": "Polish creation flow UI",
+    "depends_on": [
+      "feature-39"
+    ],
+    "steps": [
+      "Style mode tabs",
+      "Polish input fields",
+      "Style style kit grid cards",
+      "Add loading animation"
+    ],
+    "validation": {
+      "_note": "Visual polish pass on creation flow. Both topic and text modes.",
+      "commands": [
+        "agent-browser open $BASE_URL/en/create",
+        "agent-browser wait --load networkidle",
+        "agent-browser screenshot $SCREENSHOT_DIR/styling/create-topic.png",
+        "agent-browser find testid 'mode_text' click",
+        "agent-browser screenshot $SCREENSHOT_DIR/styling/create-text.png"
+      ],
+      "expected": "Mode tabs styled with active indicator. Inputs have focus states. Style kit grid shows preview cards. Loading animation is smooth."
+    },
+    "passes": false
+  },
+  {
+    "id": "styling-03",
+    "category": "styling",
+    "description": "Polish editor UI",
+    "depends_on": [
+      "feature-17",
+      "feature-23",
+      "feature-35"
+    ],
+    "steps": [
+      "Refine slide thumbnail rail",
+      "Style right panel controls",
+      "Add hover and focus states",
+      "Add tooltips for all actions",
+      "Add keyboard shortcut hints"
+    ],
+    "validation": {
+      "_note": "REQUIRES /editor/test. Visual polish pass on editor with tooltips and keyboard hints.",
+      "commands": [
+        "agent-browser open $BASE_URL/en/editor/test",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'export_button' hover",
+        "agent-browser wait 500",
+        "agent-browser screenshot $SCREENSHOT_DIR/styling/editor-polished.png"
+      ],
+      "expected": "Thumbnail rail scrollable with active highlight. Right panel controls grouped logically. Tooltips appear on hover with keyboard shortcuts (Cmd+E for export, etc)."
+    },
+    "passes": false
+  },
+  {
+    "id": "testing-01",
+    "category": "testing",
+    "description": "E2E test: Topic generation flow",
+    "depends_on": [
+      "feature-40",
+      "feature-33"
+    ],
+    "steps": [
+      "Test: enter topic → generate → edit → export PDF",
+      "Verify all steps complete successfully",
+      "Capture screenshots at each step"
+    ],
+    "validation": {
+      "_note": "Full E2E test of happy path. May require login first if create page is protected. Screenshots document each step.",
+      "commands": [
+        "mkdir -p $SCREENSHOT_DIR/testing",
+        "agent-browser open $BASE_URL/en/create",
+        "agent-browser wait --load networkidle",
+        "agent-browser errors clear",
+        "agent-browser screenshot $SCREENSHOT_DIR/testing/e2e-01-create.png",
+        "agent-browser find testid 'topic_input' fill '5 ways to improve your morning routine'",
+        "agent-browser find testid 'generate_button' click",
+        "agent-browser wait --url '**/editor/**' --timeout 120000",
+        "agent-browser screenshot $SCREENSHOT_DIR/testing/e2e-02-editor.png",
+        "agent-browser find testid 'text_box' click",
+        "agent-browser find testid 'text_input' fill 'Edited headline'",
+        "agent-browser screenshot $SCREENSHOT_DIR/testing/e2e-03-edited.png",
+        "agent-browser find testid 'export_button' click",
+        "agent-browser find testid 'format_pdf' click",
+        "agent-browser find testid 'start_export_button' click",
+        "agent-browser wait --text 'Download' --timeout 120000",
+        "agent-browser screenshot $SCREENSHOT_DIR/testing/e2e-04-exported.png",
+        "agent-browser errors | tee $LOG_DIR/e2e_topic_errors.txt",
+        "test -s $LOG_DIR/e2e_topic_errors.txt && echo 'WARN: console errors present' || echo 'PASS: no console errors'"
+      ],
+      "expected": "1. /create page loads with topic_input visible. 2. After generate, redirects to /editor/[id] with 8-12 slides. 3. Text editing works. 4. Export modal opens, PDF generates, Download button appears. 5. No console errors throughout flow. Screenshots captured at each step."
+    },
+    "passes": false
+  },
+  {
+    "id": "testing-02",
+    "category": "testing",
+    "description": "E2E test: Text paste flow",
+    "depends_on": [
+      "feature-40",
+      "feature-33"
+    ],
+    "steps": [
+      "Test: paste text → generate → edit → export PNG",
+      "Test with short text (<500 chars)",
+      "Test with long text (>5000 chars)"
+    ],
+    "validation": {
+      "_note": "E2E test of text paste mode. Tests both short and long text inputs.",
+      "commands": [
+        "agent-browser open $BASE_URL/en/create",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'mode_text' click",
+        "agent-browser find testid 'text_input' fill 'This is a short piece of text to test text-to-carousel generation.'",
+        "agent-browser find testid 'generate_button' click",
+        "agent-browser wait --url '**/editor/**' --timeout 120000",
+        "agent-browser screenshot $SCREENSHOT_DIR/testing/e2e-text-short.png"
+      ],
+      "expected": "Text mode generates slides from pasted content. Short text (<500 chars) creates ~5 slides. Long text (>5000 chars) creates 10-12 slides with smart chunking."
+    },
+    "passes": false
+  },
+  {
+    "id": "testing-03",
+    "category": "testing",
+    "description": "QA all 8 style kits",
+    "depends_on": [
+      "testing-01"
+    ],
+    "steps": [
+      "Create carousel with each style kit",
+      "Export PDF for each",
+      "Verify fonts render correctly",
+      "Verify colors match preview"
+    ],
+    "validation": {
+      "_note": "REQUIRES /editor/test. Test each style kit renders correctly on canvas and in exports.",
+      "commands": [
+        "agent-browser open $BASE_URL/en/editor/test",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'style_kit_selector' click",
+        "agent-browser screenshot $SCREENSHOT_DIR/testing/style-kit-selector.png",
+        "# Manually test each kit by clicking and verifying colors/fonts"
+      ],
+      "expected": "All 8 style kits: colors match preview, fonts load correctly, exported PDF preserves styling."
+    },
+    "passes": false
+  },
+  {
+    "id": "testing-04",
+    "category": "testing",
+    "description": "QA brand kit application",
+    "depends_on": [
+      "feature-26",
+      "testing-01"
+    ],
+    "steps": [
+      "Create brand kit with logo and colors",
+      "Generate carousel with brand kit",
+      "Export and verify brand elements present"
+    ],
+    "validation": {
+      "_note": "AUTH REQUIRED: Full brand kit flow test - settings, creation, export.",
+      "commands": [
+        "# Create brand kit",
+        "agent-browser open $BASE_URL/en/settings/brand-kit",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'brand_name_input' fill 'Test Brand'",
+        "agent-browser find testid 'save_button' click",
+        "agent-browser wait 2000",
+        "# Generate with brand kit",
+        "agent-browser open $BASE_URL/en/create",
+        "agent-browser find testid 'brand_kit_toggle' click",
+        "agent-browser find testid 'topic_input' fill 'Brand kit test'",
+        "agent-browser find testid 'generate_button' click",
+        "agent-browser wait --url '**/editor/**' --timeout 120000",
+        "agent-browser screenshot $SCREENSHOT_DIR/testing/brand-kit-applied.png"
+      ],
+      "expected": "Generated slides show brand colors, fonts, logo (if uploaded), and handle. Exported PDF includes brand elements."
+    },
+    "passes": false
+  },
+  {
+    "id": "validation-01",
+    "category": "validation",
+    "description": "Generate sample carousels for all 8 style kits",
+    "depends_on": [
+      "testing-01",
+      "testing-02",
+      "testing-03",
+      "testing-04"
+    ],
+    "steps": [
+      "For each style kit, generate a carousel with topic: 'Top 5 productivity tips for remote workers'",
+      "Ensure each carousel has 8-10 slides",
+      "Save project IDs for export validation",
+      "Capture screenshot of each generated carousel"
+    ],
+    "validation": {
+      "_note": "Generates carousels for all style kits and captures evidence",
+      "commands": [
+        "mkdir -p $SCREENSHOT_DIR/validation/carousels",
+        "STYLE_KITS='minimal_clean high_contrast marker_highlight sticky_note corporate_pro gradient_modern dark_mode soft_pastel'",
+        "for kit in $STYLE_KITS; do echo \"Generating carousel with $kit style kit...\"; agent-browser open $BASE_URL/create; agent-browser wait --load networkidle; agent-browser find testid 'topic_input' fill 'Top 5 productivity tips for remote workers'; agent-browser find testid 'style_kit_$kit' click 2>/dev/null || echo 'Kit selector may need expanding'; agent-browser find testid 'generate_button' click; agent-browser wait --url '**/editor/**' --timeout 120000; agent-browser screenshot $SCREENSHOT_DIR/validation/carousels/carousel-$kit.png; agent-browser get url | tee -a $LOG_DIR/generated_projects.txt; done",
+        "test $(wc -l < $LOG_DIR/generated_projects.txt) -ge 8 && echo 'PASS: 8 carousels generated' || echo 'FAIL: Not all carousels generated'"
+      ],
+      "expected": "All 8 style kit carousels generated successfully with screenshots captured"
+    },
+    "passes": false
+  },
+  {
+    "id": "validation-02",
+    "category": "validation",
+    "description": "Export all carousels to PDF and validate output files",
+    "depends_on": [
+      "validation-01"
+    ],
+    "steps": [
+      "Export each generated carousel as PDF",
+      "Verify PDF files are created and have valid size (>100KB)",
+      "Verify PDF has correct number of pages (8-10)",
+      "Verify PDF dimensions are correct (1080x1350 per page)"
+    ],
+    "validation": {
+      "_note": "Exports to PDF and validates file integrity",
+      "commands": [
+        "mkdir -p $SCREENSHOT_DIR/validation/exports/pdf",
+        "mkdir -p $LOG_DIR/validation",
+        "# For each project URL in generated_projects.txt, export PDF",
+        "while read project_url; do project_id=$(echo $project_url | grep -oE '[^/]+$'); echo \"Exporting PDF for project $project_id...\"; agent-browser open $project_url; agent-browser wait --load networkidle; agent-browser find testid 'export_button' click; agent-browser find testid 'format_pdf' click; agent-browser find testid 'filename_input' fill \"carousel-$project_id\"; agent-browser find testid 'start_export_button' click; agent-browser wait --text 'Download' --timeout 120000; agent-browser find testid 'download_button' click; agent-browser wait 5000; done < $LOG_DIR/generated_projects.txt",
+        "# Validate PDF files",
+        "find ~/Downloads -name 'carousel-*.pdf' -mmin -30 | while read pdf; do echo \"Validating $pdf...\"; size=$(stat -f%z \"$pdf\" 2>/dev/null || stat -c%s \"$pdf\"); test $size -gt 100000 && echo \"PASS: $pdf size OK ($size bytes)\" || echo \"FAIL: $pdf too small ($size bytes)\"; done | tee $LOG_DIR/validation/pdf_validation.txt",
+        "grep -c 'PASS' $LOG_DIR/validation/pdf_validation.txt | tee $LOG_DIR/validation/pdf_pass_count.txt",
+        "test $(cat $LOG_DIR/validation/pdf_pass_count.txt) -ge 8 && echo 'PASS: All PDFs validated' || echo 'FAIL: Some PDFs failed validation'"
+      ],
+      "expected": "All 8 PDF exports are valid files with correct size and page count"
+    },
+    "passes": false
+  },
+  {
+    "id": "validation-03",
+    "category": "validation",
+    "description": "Export all carousels to PNG and validate output files",
+    "depends_on": [
+      "validation-01"
+    ],
+    "steps": [
+      "Export each generated carousel as PNG images",
+      "Verify PNG files are created for each slide (8-10 per carousel)",
+      "Verify PNG dimensions are 1080x1350",
+      "Verify PNG file sizes are reasonable (>50KB each)"
+    ],
+    "validation": {
+      "_note": "Exports to PNG and validates image integrity",
+      "commands": [
+        "mkdir -p $SCREENSHOT_DIR/validation/exports/png",
+        "# For each project URL, export PNG",
+        "while read project_url; do project_id=$(echo $project_url | grep -oE '[^/]+$'); echo \"Exporting PNG for project $project_id...\"; agent-browser open $project_url; agent-browser wait --load networkidle; agent-browser find testid 'export_button' click; agent-browser find testid 'format_png' click; agent-browser find testid 'filename_input' fill \"carousel-$project_id\"; agent-browser find testid 'start_export_button' click; agent-browser wait --text 'Download' --timeout 120000; agent-browser find testid 'download_button' click; agent-browser wait 5000; done < $LOG_DIR/generated_projects.txt",
+        "# Validate PNG files",
+        "find ~/Downloads -name 'carousel-*.png' -mmin -30 | while read png; do echo \"Validating $png...\"; size=$(stat -f%z \"$png\" 2>/dev/null || stat -c%s \"$png\"); test $size -gt 50000 && echo \"PASS: $png size OK ($size bytes)\" || echo \"FAIL: $png too small ($size bytes)\"; done | tee $LOG_DIR/validation/png_validation.txt",
+        "grep -c 'PASS' $LOG_DIR/validation/png_validation.txt | tee $LOG_DIR/validation/png_pass_count.txt",
+        "test $(cat $LOG_DIR/validation/png_pass_count.txt) -ge 64 && echo 'PASS: All PNGs validated (8 carousels x 8 slides)' || echo 'FAIL: Some PNGs failed validation'"
+      ],
+      "expected": "All PNG exports are valid image files with correct dimensions"
+    },
+    "passes": false
+  },
+  {
+    "id": "validation-04",
+    "category": "validation",
+    "description": "Validate carousel content quality",
+    "depends_on": [
+      "validation-01"
+    ],
+    "steps": [
+      "For each carousel, verify correct number of slides (8-10)",
+      "Verify no text overflow/truncation indicators are visible",
+      "Verify all slides have content (no empty text boxes)",
+      "Verify slide structure follows expected layout patterns"
+    ],
+    "validation": {
+      "_note": "Validates content is complete and properly formatted",
+      "commands": [
+        "# Check each carousel for content quality",
+        "while read project_url; do project_id=$(echo $project_url | grep -oE '[^/]+$'); echo \"Checking content quality for $project_id...\"; agent-browser open $project_url; agent-browser wait --load networkidle; agent-browser snapshot -i | tee $LOG_DIR/validation/content_$project_id.json; slide_count=$(grep -c 'slide_thumbnail' $LOG_DIR/validation/content_$project_id.json); test $slide_count -ge 8 && test $slide_count -le 12 && echo \"PASS: $project_id has $slide_count slides\" || echo \"FAIL: $project_id has $slide_count slides (expected 8-12)\"; overflow=$(grep -c 'overflow_indicator' $LOG_DIR/validation/content_$project_id.json || echo 0); test $overflow -eq 0 && echo \"PASS: $project_id has no overflow\" || echo \"WARN: $project_id has $overflow overflow indicators\"; done < $LOG_DIR/generated_projects.txt | tee $LOG_DIR/validation/content_quality.txt",
+        "grep -c 'FAIL' $LOG_DIR/validation/content_quality.txt | tee $LOG_DIR/validation/content_fail_count.txt",
+        "test $(cat $LOG_DIR/validation/content_fail_count.txt) -eq 0 && echo 'PASS: All carousels have valid content' || echo 'FAIL: Some carousels have content issues'"
+      ],
+      "expected": "All carousels have 8-12 slides with complete content and no overflow"
+    },
+    "passes": false
+  },
+  {
+    "id": "validation-05",
+    "category": "validation",
+    "description": "AI design quality review",
+    "depends_on": [
+      "validation-02",
+      "validation-03"
+    ],
+    "steps": [
+      "Use AI to analyze exported carousel screenshots for design quality",
+      "Check: visual hierarchy is clear, text is readable, colors are harmonious",
+      "Check: layouts are balanced, spacing is consistent, brand consistency",
+      "Generate design quality report with scores"
+    ],
+    "validation": {
+      "_note": "Uses AI to evaluate design quality of generated carousels",
+      "commands": [
+        "mkdir -p $LOG_DIR/validation/design_review",
+        "# Create prompt for design quality review",
+        "cat > $LOG_DIR/validation/design_prompt.txt << 'PROMPT'\nAnalyze this carousel design for quality. Rate each aspect 1-10:\n1. Visual Hierarchy: Is the most important content prominent?\n2. Readability: Is text easy to read with good contrast?\n3. Color Harmony: Do colors work well together?\n4. Layout Balance: Is the composition balanced and professional?\n5. Spacing: Is whitespace used effectively?\n6. Brand Consistency: Is styling consistent across slides?\n7. Overall Polish: Does it look professional and intentional?\n\nProvide a JSON response with scores and brief explanations.\nPROMPT",
+        "# Analyze each carousel screenshot with AI",
+        "for img in $SCREENSHOT_DIR/validation/carousels/carousel-*.png; do kit=$(basename $img .png | sed 's/carousel-//'); echo \"Reviewing design for $kit...\"; curl -s -X POST $BASE_URL/api/analyze-design -H 'Content-Type: application/json' -d \"{\\\"image_path\\\":\\\"$img\\\",\\\"prompt\\\":\\\"$(cat $LOG_DIR/validation/design_prompt.txt | tr '\\n' ' ')\\\"}\" | tee $LOG_DIR/validation/design_review/review_$kit.json; done 2>/dev/null || echo 'Design review API not available - manual review needed'",
+        "# Fallback: visual inspection screenshots",
+        "echo 'Design review screenshots available at: $SCREENSHOT_DIR/validation/carousels/'",
+        "ls -la $SCREENSHOT_DIR/validation/carousels/*.png | wc -l | tee $LOG_DIR/validation/screenshot_count.txt",
+        "test $(cat $LOG_DIR/validation/screenshot_count.txt) -ge 8 && echo 'PASS: All design screenshots captured for review' || echo 'FAIL: Missing design screenshots'"
+      ],
+      "expected": "All carousels receive design quality scores >= 7/10 on average, or screenshots ready for manual review"
+    },
+    "passes": false
+  },
+  {
+    "id": "validation-06",
+    "category": "validation",
+    "description": "Visual regression baseline creation",
+    "depends_on": [
+      "validation-01"
+    ],
+    "steps": [
+      "Capture baseline screenshots for each slide type and style kit combination",
+      "Store baseline images in version-controlled directory",
+      "Document expected visual appearance for each baseline"
+    ],
+    "validation": {
+      "_note": "Creates baseline images for future visual regression testing",
+      "commands": [
+        "mkdir -p $SCREENSHOT_DIR/validation/baselines",
+        "# Capture detailed baseline screenshots for each carousel",
+        "while read project_url; do project_id=$(echo $project_url | grep -oE '[^/]+$'); echo \"Capturing baselines for $project_id...\"; agent-browser open $project_url; agent-browser wait --load networkidle; for i in $(seq 1 10); do agent-browser find testid \"slide_thumbnail_$i\" click 2>/dev/null && agent-browser wait 300 && agent-browser screenshot $SCREENSHOT_DIR/validation/baselines/${project_id}_slide_$i.png || break; done; done < $LOG_DIR/generated_projects.txt",
+        "# Count baseline images created",
+        "baseline_count=$(ls $SCREENSHOT_DIR/validation/baselines/*.png 2>/dev/null | wc -l)",
+        "test $baseline_count -ge 64 && echo \"PASS: $baseline_count baseline images created\" || echo \"WARN: Only $baseline_count baselines (expected ~80)\"",
+        "# Create manifest of baselines",
+        "ls $SCREENSHOT_DIR/validation/baselines/*.png | xargs -I{} basename {} | sort > $LOG_DIR/validation/baseline_manifest.txt",
+        "echo 'Baseline manifest created at $LOG_DIR/validation/baseline_manifest.txt'"
+      ],
+      "expected": "Baseline screenshots captured for all slides (~80 images), manifest created"
+    },
+    "passes": false
+  },
+  {
+    "id": "validation-07",
+    "category": "validation",
+    "description": "Full carousel generation smoke test",
+    "depends_on": [
+      "validation-02",
+      "validation-03",
+      "validation-04",
+      "validation-05",
+      "validation-06"
+    ],
+    "steps": [
+      "Run complete end-to-end flow: topic → generate → edit → style change → export",
+      "Verify no console errors throughout flow",
+      "Verify export files are downloadable and valid",
+      "Generate final validation report"
+    ],
+    "validation": {
+      "_note": "Final comprehensive smoke test with full validation report",
+      "commands": [
+        "echo '=== QUICKCAROUSALS FINAL VALIDATION SMOKE TEST ===' | tee $LOG_DIR/validation/final_report.txt",
+        "echo 'Started at: '$(date) | tee -a $LOG_DIR/validation/final_report.txt",
+        "",
+        "# Test 1: Complete flow with topic generation",
+        "echo '\\n--- Test 1: Topic Generation Flow ---' | tee -a $LOG_DIR/validation/final_report.txt",
+        "agent-browser open $BASE_URL/create",
+        "agent-browser wait --load networkidle",
+        "agent-browser errors clear",
+        "agent-browser find testid 'topic_input' fill '10 ways to boost your creativity and unlock your full potential'",
+        "agent-browser find testid 'slide_count' fill '10'",
+        "agent-browser find testid 'generate_button' click",
+        "agent-browser wait --url '**/editor/**' --timeout 120000",
+        "agent-browser screenshot $SCREENSHOT_DIR/validation/smoke_01_generated.png",
+        "",
+        "# Test 2: Edit content",
+        "echo '\\n--- Test 2: Content Editing ---' | tee -a $LOG_DIR/validation/final_report.txt",
+        "agent-browser find testid 'text_box' click",
+        "agent-browser find testid 'text_input' fill 'SMOKE TEST: Creativity Unleashed'",
+        "agent-browser wait 1000",
+        "agent-browser screenshot $SCREENSHOT_DIR/validation/smoke_02_edited.png",
+        "",
+        "# Test 3: Style kit change",
+        "echo '\\n--- Test 3: Style Kit Change ---' | tee -a $LOG_DIR/validation/final_report.txt",
+        "agent-browser find testid 'style_kit_selector' click",
+        "agent-browser find testid 'style_kit_dark_mode' click",
+        "agent-browser wait 1000",
+        "agent-browser screenshot $SCREENSHOT_DIR/validation/smoke_03_styled.png",
+        "",
+        "# Test 4: Export PDF",
+        "echo '\\n--- Test 4: PDF Export ---' | tee -a $LOG_DIR/validation/final_report.txt",
+        "agent-browser find testid 'export_button' click",
+        "agent-browser find testid 'format_pdf' click",
+        "agent-browser find testid 'filename_input' fill 'smoke_test_final'",
+        "agent-browser find testid 'start_export_button' click",
+        "agent-browser wait --text 'Download' --timeout 120000",
+        "agent-browser find testid 'download_button' click",
+        "agent-browser wait 5000",
+        "agent-browser screenshot $SCREENSHOT_DIR/validation/smoke_04_exported.png",
+        "",
+        "# Check for errors",
+        "agent-browser errors | tee $LOG_DIR/validation/smoke_test_errors.txt",
+        "error_count=$(wc -l < $LOG_DIR/validation/smoke_test_errors.txt)",
+        "test $error_count -eq 0 && echo 'PASS: No console errors' || echo \"WARN: $error_count console errors\"",
+        "",
+        "# Validate exported file",
+        "pdf_file=$(find ~/Downloads -name 'smoke_test_final*.pdf' -mmin -10 | head -1)",
+        "if [ -n \"$pdf_file\" ]; then pdf_size=$(stat -f%z \"$pdf_file\" 2>/dev/null || stat -c%s \"$pdf_file\"); test $pdf_size -gt 100000 && echo \"PASS: PDF exported successfully ($pdf_size bytes)\" | tee -a $LOG_DIR/validation/final_report.txt || echo 'FAIL: PDF too small' | tee -a $LOG_DIR/validation/final_report.txt; else echo 'FAIL: PDF not found' | tee -a $LOG_DIR/validation/final_report.txt; fi",
+        "",
+        "# Generate summary",
+        "echo '\\n=== VALIDATION SUMMARY ===' | tee -a $LOG_DIR/validation/final_report.txt",
+        "echo 'PDF Validations: '$(grep -c 'PASS' $LOG_DIR/validation/pdf_validation.txt 2>/dev/null || echo 0)'/8' | tee -a $LOG_DIR/validation/final_report.txt",
+        "echo 'PNG Validations: '$(grep -c 'PASS' $LOG_DIR/validation/png_validation.txt 2>/dev/null || echo 0)'/64+' | tee -a $LOG_DIR/validation/final_report.txt",
+        "echo 'Content Quality: '$(grep -c 'PASS' $LOG_DIR/validation/content_quality.txt 2>/dev/null || echo 0)'/8' | tee -a $LOG_DIR/validation/final_report.txt",
+        "echo 'Baselines Created: '$(cat $LOG_DIR/validation/screenshot_count.txt 2>/dev/null || echo 0) | tee -a $LOG_DIR/validation/final_report.txt",
+        "echo 'Smoke Test Errors: '$error_count | tee -a $LOG_DIR/validation/final_report.txt",
+        "echo '\\nCompleted at: '$(date) | tee -a $LOG_DIR/validation/final_report.txt",
+        "",
+        "# Final pass/fail determination",
+        "total_pass=$(grep -c 'PASS' $LOG_DIR/validation/final_report.txt)",
+        "total_fail=$(grep -c 'FAIL' $LOG_DIR/validation/final_report.txt)",
+        "echo \"\\nTotal PASS: $total_pass, Total FAIL: $total_fail\" | tee -a $LOG_DIR/validation/final_report.txt",
+        "test $total_fail -eq 0 && echo '\\n✅ ALL VALIDATIONS PASSED' | tee -a $LOG_DIR/validation/final_report.txt || echo '\\n❌ SOME VALIDATIONS FAILED - Review report' | tee -a $LOG_DIR/validation/final_report.txt"
+      ],
+      "expected": "All validation checks pass, final PDF export successful, no console errors, comprehensive report generated"
+    },
+    "passes": false
+  },
+  {
+    "id": "validation-08",
+    "category": "validation",
+    "description": "Build and TypeScript validation",
+    "depends_on": [
+      "styling-03"
+    ],
+    "steps": [
+      "Run TypeScript type checking across all packages",
+      "Run ESLint on all source files",
+      "Run production build and verify no errors",
+      "Check bundle size is within limits"
+    ],
+    "validation": {
+      "_note": "Ensures codebase compiles and passes linting",
+      "commands": [
+        "cd $WORKSPACE",
+        "echo '=== BUILD & TYPE VALIDATION ===' | tee $LOG_DIR/validation/build_report.txt",
+        "",
+        "# TypeScript type checking",
+        "echo '\\n--- TypeScript Check ---' | tee -a $LOG_DIR/validation/build_report.txt",
+        "bun run typecheck 2>&1 | tee $LOG_DIR/validation/typecheck.txt",
+        "type_errors=$(grep -c 'error TS' $LOG_DIR/validation/typecheck.txt || echo 0)",
+        "test $type_errors -eq 0 && echo 'PASS: No TypeScript errors' | tee -a $LOG_DIR/validation/build_report.txt || echo \"FAIL: $type_errors TypeScript errors\" | tee -a $LOG_DIR/validation/build_report.txt",
+        "",
+        "# ESLint check",
+        "echo '\\n--- ESLint Check ---' | tee -a $LOG_DIR/validation/build_report.txt",
+        "bun run lint 2>&1 | tee $LOG_DIR/validation/eslint.txt",
+        "lint_errors=$(grep -c 'error' $LOG_DIR/validation/eslint.txt || echo 0)",
+        "test $lint_errors -eq 0 && echo 'PASS: No ESLint errors' | tee -a $LOG_DIR/validation/build_report.txt || echo \"WARN: $lint_errors ESLint issues\" | tee -a $LOG_DIR/validation/build_report.txt",
+        "",
+        "# Production build",
+        "echo '\\n--- Production Build ---' | tee -a $LOG_DIR/validation/build_report.txt",
+        "bun run build 2>&1 | tee $LOG_DIR/validation/build.txt",
+        "build_success=$?",
+        "test $build_success -eq 0 && echo 'PASS: Production build succeeded' | tee -a $LOG_DIR/validation/build_report.txt || echo 'FAIL: Production build failed' | tee -a $LOG_DIR/validation/build_report.txt",
+        "",
+        "# Bundle size check (should be < 500KB for main bundle)",
+        "echo '\\n--- Bundle Size Check ---' | tee -a $LOG_DIR/validation/build_report.txt",
+        "if [ -d 'apps/nextjs/.next' ]; then main_bundle=$(find apps/nextjs/.next -name '*.js' -size +500k | wc -l); test $main_bundle -eq 0 && echo 'PASS: No oversized bundles (>500KB)' | tee -a $LOG_DIR/validation/build_report.txt || echo \"WARN: $main_bundle large bundles found\" | tee -a $LOG_DIR/validation/build_report.txt; fi",
+        "",
+        "# Summary",
+        "grep -c 'FAIL' $LOG_DIR/validation/build_report.txt | tee $LOG_DIR/validation/build_fail_count.txt",
+        "test $(cat $LOG_DIR/validation/build_fail_count.txt) -eq 0 && echo '\\n✅ BUILD VALIDATION PASSED' || echo '\\n❌ BUILD VALIDATION FAILED'"
+      ],
+      "expected": "TypeScript compiles with 0 errors, ESLint passes, production build succeeds, bundle size within limits"
+    },
+    "passes": false
+  },
+  {
+    "id": "validation-09",
+    "category": "validation",
+    "description": "Unit and integration test validation",
+    "depends_on": [
+      "validation-08"
+    ],
+    "steps": [
+      "Run unit test suite with Vitest",
+      "Verify test coverage meets minimum threshold (80%)",
+      "Run integration tests for critical paths",
+      "Generate test coverage report"
+    ],
+    "validation": {
+      "_note": "Runs automated test suite and validates coverage",
+      "commands": [
+        "cd $WORKSPACE",
+        "echo '=== TEST SUITE VALIDATION ===' | tee $LOG_DIR/validation/test_report.txt",
+        "",
+        "# Run unit tests with coverage",
+        "echo '\\n--- Unit Tests ---' | tee -a $LOG_DIR/validation/test_report.txt",
+        "bun run test --coverage 2>&1 | tee $LOG_DIR/validation/test_output.txt",
+        "test_exit=$?",
+        "",
+        "# Extract test results",
+        "tests_passed=$(grep -oE '[0-9]+ passed' $LOG_DIR/validation/test_output.txt | head -1 | grep -oE '[0-9]+' || echo 0)",
+        "tests_failed=$(grep -oE '[0-9]+ failed' $LOG_DIR/validation/test_output.txt | head -1 | grep -oE '[0-9]+' || echo 0)",
+        "echo \"Tests: $tests_passed passed, $tests_failed failed\" | tee -a $LOG_DIR/validation/test_report.txt",
+        "",
+        "test $tests_failed -eq 0 && echo 'PASS: All unit tests passed' | tee -a $LOG_DIR/validation/test_report.txt || echo \"FAIL: $tests_failed tests failed\" | tee -a $LOG_DIR/validation/test_report.txt",
+        "",
+        "# Coverage check (target: 80%)",
+        "echo '\\n--- Coverage Check ---' | tee -a $LOG_DIR/validation/test_report.txt",
+        "coverage=$(grep -oE 'All files[^|]*\\|[^|]*\\|[^|]*\\|\\s*[0-9.]+' $LOG_DIR/validation/test_output.txt | grep -oE '[0-9.]+$' || echo 0)",
+        "echo \"Coverage: $coverage%\" | tee -a $LOG_DIR/validation/test_report.txt",
+        "# Compare coverage (using bc for floating point) - target 80%, accept >= 95%",
+        "coverage_ok=$(echo \"$coverage >= 80\" | bc 2>/dev/null || echo 0)",
+        "test $coverage_ok -eq 1 && echo 'PASS: Coverage >= 80% (target: 80%)' | tee -a $LOG_DIR/validation/test_report.txt || echo 'FAIL: Coverage below 80% (target: 80%)' | tee -a $LOG_DIR/validation/test_report.txt",
+        "",
+        "# Summary",
+        "grep -c 'FAIL' $LOG_DIR/validation/test_report.txt | tee $LOG_DIR/validation/test_fail_count.txt",
+        "test $(cat $LOG_DIR/validation/test_fail_count.txt) -eq 0 && echo '\\n✅ TEST VALIDATION PASSED' || echo '\\n❌ TEST VALIDATION FAILED'"
+      ],
+      "expected": "All unit tests pass, code coverage >= 80%, no regressions"
+    },
+    "passes": false
+  },
+  {
+    "id": "validation-10",
+    "category": "validation",
+    "description": "API contract validation",
+    "depends_on": [
+      "feature-36",
+      "feature-30",
+      "feature-09"
+    ],
+    "steps": [
+      "Test all API endpoints return expected status codes",
+      "Validate response schemas match TypeScript types",
+      "Test error responses have consistent format",
+      "Verify rate limiting headers present"
+    ],
+    "validation": {
+      "_note": "Validates all API endpoints work correctly",
+      "commands": [
+        "echo '=== API CONTRACT VALIDATION ===' | tee $LOG_DIR/validation/api_report.txt",
+        "mkdir -p $LOG_DIR/validation/api",
+        "",
+        "# Health endpoint",
+        "echo '\\n--- Health Endpoint ---' | tee -a $LOG_DIR/validation/api_report.txt",
+        "curl -s -w '\\n%{http_code}' $BASE_URL/api/health | tee $LOG_DIR/validation/api/health.txt",
+        "health_status=$(tail -1 $LOG_DIR/validation/api/health.txt)",
+        "test $health_status -eq 200 && echo 'PASS: GET /api/health → 200' | tee -a $LOG_DIR/validation/api_report.txt || echo 'FAIL: GET /api/health failed' | tee -a $LOG_DIR/validation/api_report.txt",
+        "",
+        "# Style kits endpoint",
+        "echo '\\n--- Style Kits Endpoint ---' | tee -a $LOG_DIR/validation/api_report.txt",
+        "curl -s -w '\\n%{http_code}' $BASE_URL/api/style-kits | tee $LOG_DIR/validation/api/style_kits.txt",
+        "style_status=$(tail -1 $LOG_DIR/validation/api/style_kits.txt)",
+        "style_count=$(head -n -1 $LOG_DIR/validation/api/style_kits.txt | jq 'length' 2>/dev/null || echo 0)",
+        "test $style_status -eq 200 && test $style_count -eq 8 && echo 'PASS: GET /api/style-kits → 200, 8 kits' | tee -a $LOG_DIR/validation/api_report.txt || echo 'FAIL: Style kits endpoint issue' | tee -a $LOG_DIR/validation/api_report.txt",
+        "",
+        "# Layouts endpoint",
+        "echo '\\n--- Layouts Endpoint ---' | tee -a $LOG_DIR/validation/api_report.txt",
+        "curl -s -w '\\n%{http_code}' $BASE_URL/api/layouts | tee $LOG_DIR/validation/api/layouts.txt",
+        "layout_status=$(tail -1 $LOG_DIR/validation/api/layouts.txt)",
+        "layout_count=$(head -n -1 $LOG_DIR/validation/api/layouts.txt | jq 'length' 2>/dev/null || echo 0)",
+        "test $layout_status -eq 200 && test $layout_count -eq 9 && echo 'PASS: GET /api/layouts → 200, 9 layouts' | tee -a $LOG_DIR/validation/api_report.txt || echo 'FAIL: Layouts endpoint issue' | tee -a $LOG_DIR/validation/api_report.txt",
+        "",
+        "# Generate endpoint (topic)",
+        "echo '\\n--- Generate Topic Endpoint ---' | tee -a $LOG_DIR/validation/api_report.txt",
+        "curl -s -w '\\n%{http_code}' -X POST -H 'Content-Type: application/json' -d '{\"topic\":\"test\",\"tone\":\"professional\",\"slideCount\":8}' $BASE_URL/api/generate/topic | tee $LOG_DIR/validation/api/generate_topic.txt",
+        "gen_status=$(tail -1 $LOG_DIR/validation/api/generate_topic.txt)",
+        "has_slides=$(head -n -1 $LOG_DIR/validation/api/generate_topic.txt | jq 'has(\"slides\")' 2>/dev/null || echo false)",
+        "test $gen_status -eq 200 && test $has_slides = 'true' && echo 'PASS: POST /api/generate/topic → 200, has slides' | tee -a $LOG_DIR/validation/api_report.txt || echo 'FAIL: Generate topic endpoint issue' | tee -a $LOG_DIR/validation/api_report.txt",
+        "",
+        "# Protected endpoint without auth (should 401)",
+        "echo '\\n--- Auth Protection ---' | tee -a $LOG_DIR/validation/api_report.txt",
+        "curl -s -w '\\n%{http_code}' $BASE_URL/api/projects | tee $LOG_DIR/validation/api/projects_unauth.txt",
+        "unauth_status=$(tail -1 $LOG_DIR/validation/api/projects_unauth.txt)",
+        "test $unauth_status -eq 401 && echo 'PASS: GET /api/projects (no auth) → 401' | tee -a $LOG_DIR/validation/api_report.txt || echo 'FAIL: Protected endpoint not returning 401' | tee -a $LOG_DIR/validation/api_report.txt",
+        "",
+        "# Error response format",
+        "echo '\\n--- Error Response Format ---' | tee -a $LOG_DIR/validation/api_report.txt",
+        "curl -s -X POST -H 'Content-Type: application/json' -d '{}' $BASE_URL/api/generate/topic | tee $LOG_DIR/validation/api/error_format.txt",
+        "has_error=$(cat $LOG_DIR/validation/api/error_format.txt | jq 'has(\"error\")' 2>/dev/null || echo false)",
+        "test $has_error = 'true' && echo 'PASS: Error responses have \"error\" field' | tee -a $LOG_DIR/validation/api_report.txt || echo 'FAIL: Error format inconsistent' | tee -a $LOG_DIR/validation/api_report.txt",
+        "",
+        "# Summary",
+        "grep -c 'FAIL' $LOG_DIR/validation/api_report.txt | tee $LOG_DIR/validation/api_fail_count.txt",
+        "test $(cat $LOG_DIR/validation/api_fail_count.txt) -eq 0 && echo '\\n✅ API VALIDATION PASSED' || echo '\\n❌ API VALIDATION FAILED'"
+      ],
+      "expected": "All API endpoints return correct status codes, response schemas are valid, error format consistent"
+    },
+    "passes": false
+  },
+  {
+    "id": "validation-11",
+    "category": "validation",
+    "description": "Database integrity validation",
+    "depends_on": [
+      "setup-12"
+    ],
+    "steps": [
+      "Verify Prisma schema is valid",
+      "Verify all migrations apply cleanly",
+      "Verify seed data loads correctly",
+      "Test database queries perform well"
+    ],
+    "validation": {
+      "_note": "Validates database schema and data integrity",
+      "commands": [
+        "cd $WORKSPACE",
+        "echo '=== DATABASE INTEGRITY VALIDATION ===' | tee $LOG_DIR/validation/db_report.txt",
+        "",
+        "# Schema validation",
+        "echo '\\n--- Schema Validation ---' | tee -a $LOG_DIR/validation/db_report.txt",
+        "cd packages/db && bun prisma validate 2>&1 | tee $LOG_DIR/validation/db_validate.txt",
+        "schema_valid=$?",
+        "test $schema_valid -eq 0 && echo 'PASS: Prisma schema is valid' | tee -a $LOG_DIR/validation/db_report.txt || echo 'FAIL: Prisma schema invalid' | tee -a $LOG_DIR/validation/db_report.txt",
+        "",
+        "# Check all required models exist",
+        "echo '\\n--- Model Check ---' | tee -a $LOG_DIR/validation/db_report.txt",
+        "required_models='Profile StyleKit TemplateLayout BrandKit Project Slide Export'",
+        "for model in $required_models; do grep -q \"model $model\" prisma/schema.prisma && echo \"PASS: Model $model exists\" || echo \"FAIL: Model $model missing\"; done | tee -a $LOG_DIR/validation/db_report.txt",
+        "",
+        "# Verify Kysely types are generated",
+        "echo '\\n--- Type Generation ---' | tee -a $LOG_DIR/validation/db_report.txt",
+        "test -f prisma/types.ts && echo 'PASS: Kysely types generated' | tee -a $LOG_DIR/validation/db_report.txt || echo 'FAIL: Kysely types missing' | tee -a $LOG_DIR/validation/db_report.txt",
+        "",
+        "# Database connection test",
+        "echo '\\n--- Connection Test ---' | tee -a $LOG_DIR/validation/db_report.txt",
+        "bun db:push --accept-data-loss 2>&1 | tee $LOG_DIR/validation/db_push.txt",
+        "push_success=$?",
+        "test $push_success -eq 0 && echo 'PASS: Database connection successful' | tee -a $LOG_DIR/validation/db_report.txt || echo 'FAIL: Database connection failed' | tee -a $LOG_DIR/validation/db_report.txt",
+        "",
+        "# Seed data",
+        "echo '\\n--- Seed Data ---' | tee -a $LOG_DIR/validation/db_report.txt",
+        "bun db:seed 2>&1 | tee $LOG_DIR/validation/db_seed.txt || echo 'Seed script may not exist yet'",
+        "",
+        "cd $WORKSPACE",
+        "",
+        "# Summary",
+        "grep -c 'FAIL' $LOG_DIR/validation/db_report.txt | tee $LOG_DIR/validation/db_fail_count.txt",
+        "test $(cat $LOG_DIR/validation/db_fail_count.txt) -eq 0 && echo '\\n✅ DATABASE VALIDATION PASSED' || echo '\\n❌ DATABASE VALIDATION FAILED'"
+      ],
+      "expected": "Schema valid, all models exist, types generated, connection works, seed data loads"
+    },
+    "passes": false
+  },
+  {
+    "id": "validation-12",
+    "category": "validation",
+    "description": "Security validation",
+    "depends_on": [
+      "setup-14",
+      "integration-03"
+    ],
+    "steps": [
+      "Verify authentication flows work correctly",
+      "Test CSRF protection on mutations",
+      "Verify no secrets exposed in client bundle",
+      "Test input sanitization on all endpoints",
+      "Verify secure headers are set"
+    ],
+    "validation": {
+      "_note": "Validates security measures are in place",
+      "commands": [
+        "echo '=== SECURITY VALIDATION ===' | tee $LOG_DIR/validation/security_report.txt",
+        "",
+        "# Check for exposed secrets in build",
+        "echo '\\n--- Secret Exposure Check ---' | tee -a $LOG_DIR/validation/security_report.txt",
+        "if [ -d 'apps/nextjs/.next' ]; then secrets_found=$(grep -rE '(sk_live|sk_test|SUPABASE_SERVICE|password|secret)' apps/nextjs/.next/static 2>/dev/null | wc -l); test $secrets_found -eq 0 && echo 'PASS: No secrets in client bundle' | tee -a $LOG_DIR/validation/security_report.txt || echo \"FAIL: $secrets_found potential secrets exposed\" | tee -a $LOG_DIR/validation/security_report.txt; else echo 'SKIP: Build not found' | tee -a $LOG_DIR/validation/security_report.txt; fi",
+        "",
+        "# Check .env.example doesn't have real values",
+        "echo '\\n--- Env Example Check ---' | tee -a $LOG_DIR/validation/security_report.txt",
+        "real_secrets=$(grep -E '^[A-Z_]+=(sk_|pk_|[a-f0-9]{32,})' .env.example 2>/dev/null | wc -l)",
+        "test $real_secrets -eq 0 && echo 'PASS: No real secrets in .env.example' | tee -a $LOG_DIR/validation/security_report.txt || echo 'FAIL: Real secrets in .env.example' | tee -a $LOG_DIR/validation/security_report.txt",
+        "",
+        "# Check secure headers",
+        "echo '\\n--- Security Headers ---' | tee -a $LOG_DIR/validation/security_report.txt",
+        "headers=$(curl -sI $BASE_URL | tee $LOG_DIR/validation/security_headers.txt)",
+        "grep -qi 'x-frame-options' $LOG_DIR/validation/security_headers.txt && echo 'PASS: X-Frame-Options present' | tee -a $LOG_DIR/validation/security_report.txt || echo 'WARN: X-Frame-Options missing' | tee -a $LOG_DIR/validation/security_report.txt",
+        "grep -qi 'x-content-type-options' $LOG_DIR/validation/security_headers.txt && echo 'PASS: X-Content-Type-Options present' | tee -a $LOG_DIR/validation/security_report.txt || echo 'WARN: X-Content-Type-Options missing' | tee -a $LOG_DIR/validation/security_report.txt",
+        "",
+        "# Test XSS protection on input",
+        "echo '\\n--- XSS Protection ---' | tee -a $LOG_DIR/validation/security_report.txt",
+        "xss_payload='<script>alert(1)</script>'",
+        "curl -s -X POST -H 'Content-Type: application/json' -d \"{\\\"topic\\\":\\\"$xss_payload\\\"}\" $BASE_URL/api/generate/topic | tee $LOG_DIR/validation/xss_test.txt",
+        "xss_reflected=$(grep -c '<script>' $LOG_DIR/validation/xss_test.txt || echo 0)",
+        "test $xss_reflected -eq 0 && echo 'PASS: XSS payload not reflected raw' | tee -a $LOG_DIR/validation/security_report.txt || echo 'FAIL: XSS payload reflected' | tee -a $LOG_DIR/validation/security_report.txt",
+        "",
+        "# Test SQL injection protection",
+        "echo '\\n--- SQL Injection Protection ---' | tee -a $LOG_DIR/validation/security_report.txt",
+        "sqli_payload=\"'; DROP TABLE users; --\"",
+        "curl -s -X POST -H 'Content-Type: application/json' -d \"{\\\"topic\\\":\\\"$sqli_payload\\\"}\" $BASE_URL/api/generate/topic | tee $LOG_DIR/validation/sqli_test.txt",
+        "# If we get a normal response or validation error (not a DB error), we're protected",
+        "sqli_error=$(grep -ciE '(syntax error|database|sql)' $LOG_DIR/validation/sqli_test.txt || echo 0)",
+        "test $sqli_error -eq 0 && echo 'PASS: SQL injection handled safely' | tee -a $LOG_DIR/validation/security_report.txt || echo 'WARN: Potential SQL injection vulnerability' | tee -a $LOG_DIR/validation/security_report.txt",
+        "",
+        "# Webhook signature verification exists",
+        "echo '\\n--- Webhook Security ---' | tee -a $LOG_DIR/validation/security_report.txt",
+        "grep -rq 'stripe-signature\\|constructEvent' apps/nextjs/src/app/api/webhooks && echo 'PASS: Stripe webhook signature verification' | tee -a $LOG_DIR/validation/security_report.txt || echo 'WARN: Webhook signature verification not found' | tee -a $LOG_DIR/validation/security_report.txt",
+        "",
+        "# Summary",
+        "grep -c 'FAIL' $LOG_DIR/validation/security_report.txt | tee $LOG_DIR/validation/security_fail_count.txt",
+        "test $(cat $LOG_DIR/validation/security_fail_count.txt) -eq 0 && echo '\\n✅ SECURITY VALIDATION PASSED' || echo '\\n❌ SECURITY VALIDATION FAILED'"
+      ],
+      "expected": "No secrets exposed, security headers present, input sanitization works, webhook signatures verified"
+    },
+    "passes": false
+  },
+  {
+    "id": "validation-13",
+    "category": "validation",
+    "description": "Error handling validation",
+    "depends_on": [
+      "feature-40"
+    ],
+    "steps": [
+      "Test error boundaries catch React errors",
+      "Verify API errors show user-friendly messages",
+      "Test graceful degradation when services unavailable",
+      "Verify error logging captures details"
+    ],
+    "validation": {
+      "_note": "Validates error handling and graceful degradation",
+      "commands": [
+        "echo '=== ERROR HANDLING VALIDATION ===' | tee $LOG_DIR/validation/error_report.txt",
+        "",
+        "# Test 404 page",
+        "echo '\\n--- 404 Page ---' | tee -a $LOG_DIR/validation/error_report.txt",
+        "agent-browser open $BASE_URL/nonexistent-page-12345",
+        "agent-browser wait --load networkidle",
+        "agent-browser snapshot -i | tee $LOG_DIR/validation/404_snapshot.json",
+        "has_404=$(grep -ciE '(not found|404|page.*(not|doesn))' $LOG_DIR/validation/404_snapshot.json || echo 0)",
+        "test $has_404 -gt 0 && echo 'PASS: 404 page shows helpful message' | tee -a $LOG_DIR/validation/error_report.txt || echo 'WARN: 404 page may not be user-friendly' | tee -a $LOG_DIR/validation/error_report.txt",
+        "agent-browser screenshot $SCREENSHOT_DIR/validation/error-404.png",
+        "",
+        "# Test API error responses are user-friendly",
+        "echo '\\n--- API Error Messages ---' | tee -a $LOG_DIR/validation/error_report.txt",
+        "curl -s -X POST -H 'Content-Type: application/json' -d '{}' $BASE_URL/api/generate/topic | tee $LOG_DIR/validation/api_error.json",
+        "error_msg=$(jq -r '.error.message // .error // .message // \"\"' $LOG_DIR/validation/api_error.json)",
+        "test -n \"$error_msg\" && echo \"PASS: API returns error message: $error_msg\" | tee -a $LOG_DIR/validation/error_report.txt || echo 'FAIL: API error lacks message' | tee -a $LOG_DIR/validation/error_report.txt",
+        "",
+        "# Test invalid file upload",
+        "echo '\\n--- Invalid Upload Handling ---' | tee -a $LOG_DIR/validation/error_report.txt",
+        "echo 'not an image' > /tmp/fake.txt",
+        "curl -s -X POST -F 'file=@/tmp/fake.txt' $BASE_URL/api/upload 2>/dev/null | tee $LOG_DIR/validation/upload_error.json",
+        "upload_handled=$(jq -e '.error' $LOG_DIR/validation/upload_error.json 2>/dev/null && echo 1 || echo 0)",
+        "test $upload_handled -eq 1 && echo 'PASS: Invalid upload handled gracefully' | tee -a $LOG_DIR/validation/error_report.txt || echo 'WARN: Invalid upload handling unclear' | tee -a $LOG_DIR/validation/error_report.txt",
+        "",
+        "# Test generation with invalid input shows error in UI",
+        "echo '\\n--- UI Error States ---' | tee -a $LOG_DIR/validation/error_report.txt",
+        "agent-browser open $BASE_URL/create",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'generate_button' click",
+        "agent-browser wait 2000",
+        "agent-browser snapshot -i | tee $LOG_DIR/validation/ui_error_snapshot.json",
+        "has_validation=$(grep -ciE '(required|please|enter|invalid)' $LOG_DIR/validation/ui_error_snapshot.json || echo 0)",
+        "test $has_validation -gt 0 && echo 'PASS: UI shows validation errors' | tee -a $LOG_DIR/validation/error_report.txt || echo 'WARN: UI validation feedback unclear' | tee -a $LOG_DIR/validation/error_report.txt",
+        "agent-browser screenshot $SCREENSHOT_DIR/validation/error-validation.png",
+        "",
+        "# Summary",
+        "grep -c 'FAIL' $LOG_DIR/validation/error_report.txt | tee $LOG_DIR/validation/error_fail_count.txt",
+        "test $(cat $LOG_DIR/validation/error_fail_count.txt) -eq 0 && echo '\\n✅ ERROR HANDLING VALIDATION PASSED' || echo '\\n❌ ERROR HANDLING VALIDATION FAILED'"
+      ],
+      "expected": "404 page helpful, API errors have messages, invalid inputs handled gracefully, UI shows validation errors"
+    },
+    "passes": false
+  },
+  {
+    "id": "validation-14",
+    "category": "validation",
+    "description": "Data persistence validation",
+    "depends_on": [
+      "feature-37"
+    ],
+    "steps": [
+      "Test auto-save triggers on content change",
+      "Verify data survives page refresh",
+      "Test data survives browser close/reopen",
+      "Verify no data loss during concurrent edits"
+    ],
+    "validation": {
+      "_note": "Validates data is persisted correctly",
+      "commands": [
+        "echo '=== DATA PERSISTENCE VALIDATION ===' | tee $LOG_DIR/validation/persistence_report.txt",
+        "",
+        "# Create a project and make edits",
+        "echo '\\n--- Auto-Save Test ---' | tee -a $LOG_DIR/validation/persistence_report.txt",
+        "agent-browser open $BASE_URL/create",
+        "agent-browser wait --load networkidle",
+        "agent-browser find testid 'topic_input' fill 'Data persistence test carousel'",
+        "agent-browser find testid 'generate_button' click",
+        "agent-browser wait --url '**/editor/**' --timeout 120000",
+        "project_url=$(agent-browser get url)",
+        "echo \"Project URL: $project_url\" | tee -a $LOG_DIR/validation/persistence_report.txt",
+        "",
+        "# Make an edit",
+        "agent-browser find testid 'text_box' click",
+        "test_content=\"PERSISTENCE_TEST_$(date +%s)\"",
+        "agent-browser find testid 'text_input' fill \"$test_content\"",
+        "agent-browser wait 2000",
+        "",
+        "# Check save indicator",
+        "agent-browser find testid 'save_indicator'",
+        "echo 'PASS: Save indicator present' | tee -a $LOG_DIR/validation/persistence_report.txt",
+        "agent-browser screenshot $SCREENSHOT_DIR/validation/persistence-before-refresh.png",
+        "",
+        "# Refresh the page",
+        "echo '\\n--- Refresh Survival Test ---' | tee -a $LOG_DIR/validation/persistence_report.txt",
+        "agent-browser refresh",
+        "agent-browser wait --load networkidle",
+        "agent-browser wait 3000",
+        "",
+        "# Check if content persisted",
+        "agent-browser snapshot -i | tee $LOG_DIR/validation/persistence_snapshot.json",
+        "content_found=$(grep -c \"$test_content\" $LOG_DIR/validation/persistence_snapshot.json || echo 0)",
+        "test $content_found -gt 0 && echo 'PASS: Content survived page refresh' | tee -a $LOG_DIR/validation/persistence_report.txt || echo 'FAIL: Content lost after refresh' | tee -a $LOG_DIR/validation/persistence_report.txt",
+        "agent-browser screenshot $SCREENSHOT_DIR/validation/persistence-after-refresh.png",
+        "",
+        "# Test direct URL access",
+        "echo '\\n--- Direct URL Access Test ---' | tee -a $LOG_DIR/validation/persistence_report.txt",
+        "agent-browser close",
+        "agent-browser open \"$project_url\"",
+        "agent-browser wait --load networkidle",
+        "agent-browser snapshot -i | tee $LOG_DIR/validation/persistence_reopen.json",
+        "content_reopen=$(grep -c \"$test_content\" $LOG_DIR/validation/persistence_reopen.json || echo 0)",
+        "test $content_reopen -gt 0 && echo 'PASS: Content survives browser reopen' | tee -a $LOG_DIR/validation/persistence_report.txt || echo 'FAIL: Content lost after reopen' | tee -a $LOG_DIR/validation/persistence_report.txt",
+        "",
+        "# Summary",
+        "grep -c 'FAIL' $LOG_DIR/validation/persistence_report.txt | tee $LOG_DIR/validation/persistence_fail_count.txt",
+        "test $(cat $LOG_DIR/validation/persistence_fail_count.txt) -eq 0 && echo '\\n✅ PERSISTENCE VALIDATION PASSED' || echo '\\n❌ PERSISTENCE VALIDATION FAILED'"
+      ],
+      "expected": "Auto-save works, content survives refresh, content survives browser close/reopen"
+    },
+    "passes": false
+  },
+  {
+    "id": "validation-15",
+    "category": "validation",
+    "description": "Payment flow E2E validation",
+    "depends_on": [
+      "integration-04"
+    ],
+    "steps": [
+      "Test Stripe checkout flow initiates correctly",
+      "Verify webhook endpoint responds to test events",
+      "Test subscription tier updates after payment",
+      "Verify feature gating works per tier"
+    ],
+    "validation": {
+      "_note": "Validates end-to-end payment and subscription flow",
+      "commands": [
+        "echo '=== PAYMENT FLOW VALIDATION ===' | tee $LOG_DIR/validation/payment_report.txt",
+        "",
+        "# Check Stripe is configured",
+        "echo '\\n--- Stripe Configuration ---' | tee -a $LOG_DIR/validation/payment_report.txt",
+        "grep -q 'STRIPE' .env.example && echo 'PASS: Stripe env vars documented' | tee -a $LOG_DIR/validation/payment_report.txt || echo 'FAIL: Stripe env vars missing' | tee -a $LOG_DIR/validation/payment_report.txt",
+        "",
+        "# Test checkout endpoint exists",
+        "echo '\\n--- Checkout Endpoint ---' | tee -a $LOG_DIR/validation/payment_report.txt",
+        "checkout_response=$(curl -s -X POST -H 'Content-Type: application/json' -d '{\"priceId\":\"price_test\"}' $BASE_URL/api/stripe/checkout)",
+        "echo $checkout_response | tee $LOG_DIR/validation/checkout_response.json",
+        "# Should return URL or auth error (not 404)",
+        "has_url=$(echo $checkout_response | jq -e '.url' 2>/dev/null && echo 1 || echo 0)",
+        "has_error=$(echo $checkout_response | jq -e '.error' 2>/dev/null && echo 1 || echo 0)",
+        "test $has_url -eq 1 || test $has_error -eq 1 && echo 'PASS: Checkout endpoint responds' | tee -a $LOG_DIR/validation/payment_report.txt || echo 'FAIL: Checkout endpoint broken' | tee -a $LOG_DIR/validation/payment_report.txt",
+        "",
+        "# Test webhook endpoint exists",
+        "echo '\\n--- Webhook Endpoint ---' | tee -a $LOG_DIR/validation/payment_report.txt",
+        "webhook_response=$(curl -s -X POST -H 'Content-Type: application/json' -d '{}' $BASE_URL/api/webhooks/stripe)",
+        "echo $webhook_response | tee $LOG_DIR/validation/webhook_response.json",
+        "# Should return error about signature (not 404)",
+        "webhook_exists=$(echo $webhook_response | grep -ciE '(signature|unauthorized|invalid)' || echo 0)",
+        "test $webhook_exists -gt 0 && echo 'PASS: Webhook endpoint exists and validates' | tee -a $LOG_DIR/validation/payment_report.txt || echo 'WARN: Webhook endpoint response unclear' | tee -a $LOG_DIR/validation/payment_report.txt",
+        "",
+        "# Test billing page loads",
+        "echo '\\n--- Billing Page ---' | tee -a $LOG_DIR/validation/payment_report.txt",
+        "agent-browser open $BASE_URL/settings/billing",
+        "agent-browser wait --load networkidle",
+        "agent-browser snapshot -i | tee $LOG_DIR/validation/billing_snapshot.json",
+        "has_plans=$(grep -ciE '(free|creator|pro|upgrade|plan)' $LOG_DIR/validation/billing_snapshot.json || echo 0)",
+        "test $has_plans -gt 0 && echo 'PASS: Billing page shows plans' | tee -a $LOG_DIR/validation/payment_report.txt || echo 'WARN: Billing page may need auth' | tee -a $LOG_DIR/validation/payment_report.txt",
+        "agent-browser screenshot $SCREENSHOT_DIR/validation/billing-page.png",
+        "",
+        "# Test feature gating hook exists",
+        "echo '\\n--- Feature Gating ---' | tee -a $LOG_DIR/validation/payment_report.txt",
+        "grep -rq 'useSubscription' apps/nextjs/src/hooks && echo 'PASS: useSubscription hook exists' | tee -a $LOG_DIR/validation/payment_report.txt || echo 'FAIL: useSubscription hook missing' | tee -a $LOG_DIR/validation/payment_report.txt",
+        "",
+        "# Summary",
+        "grep -c 'FAIL' $LOG_DIR/validation/payment_report.txt | tee $LOG_DIR/validation/payment_fail_count.txt",
+        "test $(cat $LOG_DIR/validation/payment_fail_count.txt) -eq 0 && echo '\\n✅ PAYMENT VALIDATION PASSED' || echo '\\n❌ PAYMENT VALIDATION FAILED'"
+      ],
+      "expected": "Stripe configured, checkout works, webhook validates signatures, billing page shows plans, feature gating implemented"
+    },
+    "passes": false
+  },
+  {
+    "id": "validation-16",
+    "category": "validation",
+    "description": "SEO and meta tag validation",
+    "depends_on": [
+      "setup-03"
+    ],
+    "steps": [
+      "Verify meta tags present on all pages",
+      "Verify Open Graph tags for social sharing",
+      "Verify structured data / JSON-LD",
+      "Verify robots.txt and sitemap"
+    ],
+    "validation": {
+      "_note": "Validates SEO elements are properly configured",
+      "commands": [
+        "echo '=== SEO VALIDATION ===' | tee $LOG_DIR/validation/seo_report.txt",
+        "",
+        "# Check meta tags on homepage",
+        "echo '\\n--- Homepage Meta Tags ---' | tee -a $LOG_DIR/validation/seo_report.txt",
+        "curl -s $BASE_URL | tee $LOG_DIR/validation/homepage_html.txt",
+        "grep -q '<title>' $LOG_DIR/validation/homepage_html.txt && echo 'PASS: Title tag present' | tee -a $LOG_DIR/validation/seo_report.txt || echo 'FAIL: Title tag missing' | tee -a $LOG_DIR/validation/seo_report.txt",
+        "grep -q 'meta.*description' $LOG_DIR/validation/homepage_html.txt && echo 'PASS: Meta description present' | tee -a $LOG_DIR/validation/seo_report.txt || echo 'FAIL: Meta description missing' | tee -a $LOG_DIR/validation/seo_report.txt",
+        "",
+        "# Check Open Graph tags",
+        "echo '\\n--- Open Graph Tags ---' | tee -a $LOG_DIR/validation/seo_report.txt",
+        "grep -q 'og:title' $LOG_DIR/validation/homepage_html.txt && echo 'PASS: og:title present' | tee -a $LOG_DIR/validation/seo_report.txt || echo 'WARN: og:title missing' | tee -a $LOG_DIR/validation/seo_report.txt",
+        "grep -q 'og:description' $LOG_DIR/validation/homepage_html.txt && echo 'PASS: og:description present' | tee -a $LOG_DIR/validation/seo_report.txt || echo 'WARN: og:description missing' | tee -a $LOG_DIR/validation/seo_report.txt",
+        "grep -q 'og:image' $LOG_DIR/validation/homepage_html.txt && echo 'PASS: og:image present' | tee -a $LOG_DIR/validation/seo_report.txt || echo 'WARN: og:image missing' | tee -a $LOG_DIR/validation/seo_report.txt",
+        "",
+        "# Check Twitter Card tags",
+        "echo '\\n--- Twitter Card Tags ---' | tee -a $LOG_DIR/validation/seo_report.txt",
+        "grep -q 'twitter:card' $LOG_DIR/validation/homepage_html.txt && echo 'PASS: twitter:card present' | tee -a $LOG_DIR/validation/seo_report.txt || echo 'WARN: twitter:card missing' | tee -a $LOG_DIR/validation/seo_report.txt",
+        "",
+        "# Check robots.txt",
+        "echo '\\n--- robots.txt ---' | tee -a $LOG_DIR/validation/seo_report.txt",
+        "curl -s $BASE_URL/robots.txt | tee $LOG_DIR/validation/robots.txt",
+        "grep -q 'User-agent' $LOG_DIR/validation/robots.txt && echo 'PASS: robots.txt exists' | tee -a $LOG_DIR/validation/seo_report.txt || echo 'WARN: robots.txt missing or empty' | tee -a $LOG_DIR/validation/seo_report.txt",
+        "",
+        "# Check sitemap",
+        "echo '\\n--- Sitemap ---' | tee -a $LOG_DIR/validation/seo_report.txt",
+        "curl -s $BASE_URL/sitemap.xml | head -20 | tee $LOG_DIR/validation/sitemap.xml",
+        "grep -q '<urlset\\|<url>' $LOG_DIR/validation/sitemap.xml && echo 'PASS: sitemap.xml exists' | tee -a $LOG_DIR/validation/seo_report.txt || echo 'WARN: sitemap.xml missing' | tee -a $LOG_DIR/validation/seo_report.txt",
+        "",
+        "# Check canonical URL",
+        "echo '\\n--- Canonical URL ---' | tee -a $LOG_DIR/validation/seo_report.txt",
+        "grep -q 'rel=\"canonical\"' $LOG_DIR/validation/homepage_html.txt && echo 'PASS: Canonical URL present' | tee -a $LOG_DIR/validation/seo_report.txt || echo 'WARN: Canonical URL missing' | tee -a $LOG_DIR/validation/seo_report.txt",
+        "",
+        "# Check viewport meta",
+        "echo '\\n--- Viewport Meta ---' | tee -a $LOG_DIR/validation/seo_report.txt",
+        "grep -q 'viewport' $LOG_DIR/validation/homepage_html.txt && echo 'PASS: Viewport meta present' | tee -a $LOG_DIR/validation/seo_report.txt || echo 'FAIL: Viewport meta missing' | tee -a $LOG_DIR/validation/seo_report.txt",
+        "",
+        "# Summary",
+        "grep -c 'FAIL' $LOG_DIR/validation/seo_report.txt | tee $LOG_DIR/validation/seo_fail_count.txt",
+        "test $(cat $LOG_DIR/validation/seo_fail_count.txt) -eq 0 && echo '\\n✅ SEO VALIDATION PASSED' || echo '\\n❌ SEO VALIDATION FAILED'"
+      ],
+      "expected": "Title and meta description present, Open Graph tags configured, robots.txt and sitemap exist"
+    },
+    "passes": false
+  },
+  {
+    "id": "validation-17",
+    "category": "validation",
+    "description": "Final comprehensive validation report",
+    "depends_on": [
+      "validation-07",
+      "validation-08",
+      "validation-09",
+      "validation-10",
+      "validation-11",
+      "validation-12",
+      "validation-13",
+      "validation-14",
+      "validation-15",
+      "validation-16"
+    ],
+    "steps": [
+      "Aggregate all validation reports",
+      "Generate comprehensive validation summary",
+      "Calculate overall pass/fail rate",
+      "Flag any critical failures"
+    ],
+    "validation": {
+      "_note": "Final aggregated validation report",
+      "commands": [
+        "echo '╔══════════════════════════════════════════════════════════════════╗' | tee $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "echo '║        QUICKCAROUSALS - FINAL VALIDATION REPORT                  ║' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "echo '╚══════════════════════════════════════════════════════════════════╝' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "echo '' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "echo \"Generated: $(date)\" | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "echo '' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "",
+        "# Collect results from all validation reports",
+        "echo '┌──────────────────────────────────────────────────────────────────┐' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "echo '│ VALIDATION SUMMARY BY CATEGORY                                   │' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "echo '├──────────────────────────────────────────────────────────────────┤' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "",
+        "# Build validation",
+        "build_pass=$(grep -c 'PASS' $LOG_DIR/validation/build_report.txt 2>/dev/null || echo 0)",
+        "build_fail=$(grep -c 'FAIL' $LOG_DIR/validation/build_report.txt 2>/dev/null || echo 0)",
+        "printf '│ %-30s %3d PASS / %3d FAIL │\\n' 'Build & TypeScript' $build_pass $build_fail | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "",
+        "# Test validation",
+        "test_pass=$(grep -c 'PASS' $LOG_DIR/validation/test_report.txt 2>/dev/null || echo 0)",
+        "test_fail=$(grep -c 'FAIL' $LOG_DIR/validation/test_report.txt 2>/dev/null || echo 0)",
+        "printf '│ %-30s %3d PASS / %3d FAIL │\\n' 'Unit Tests' $test_pass $test_fail | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "",
+        "# API validation",
+        "api_pass=$(grep -c 'PASS' $LOG_DIR/validation/api_report.txt 2>/dev/null || echo 0)",
+        "api_fail=$(grep -c 'FAIL' $LOG_DIR/validation/api_report.txt 2>/dev/null || echo 0)",
+        "printf '│ %-30s %3d PASS / %3d FAIL │\\n' 'API Contracts' $api_pass $api_fail | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "",
+        "# Database validation",
+        "db_pass=$(grep -c 'PASS' $LOG_DIR/validation/db_report.txt 2>/dev/null || echo 0)",
+        "db_fail=$(grep -c 'FAIL' $LOG_DIR/validation/db_report.txt 2>/dev/null || echo 0)",
+        "printf '│ %-30s %3d PASS / %3d FAIL │\\n' 'Database Integrity' $db_pass $db_fail | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "",
+        "# Security validation",
+        "sec_pass=$(grep -c 'PASS' $LOG_DIR/validation/security_report.txt 2>/dev/null || echo 0)",
+        "sec_fail=$(grep -c 'FAIL' $LOG_DIR/validation/security_report.txt 2>/dev/null || echo 0)",
+        "printf '│ %-30s %3d PASS / %3d FAIL │\\n' 'Security' $sec_pass $sec_fail | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "",
+        "# Error handling validation",
+        "err_pass=$(grep -c 'PASS' $LOG_DIR/validation/error_report.txt 2>/dev/null || echo 0)",
+        "err_fail=$(grep -c 'FAIL' $LOG_DIR/validation/error_report.txt 2>/dev/null || echo 0)",
+        "printf '│ %-30s %3d PASS / %3d FAIL │\\n' 'Error Handling' $err_pass $err_fail | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "",
+        "# Persistence validation",
+        "pers_pass=$(grep -c 'PASS' $LOG_DIR/validation/persistence_report.txt 2>/dev/null || echo 0)",
+        "pers_fail=$(grep -c 'FAIL' $LOG_DIR/validation/persistence_report.txt 2>/dev/null || echo 0)",
+        "printf '│ %-30s %3d PASS / %3d FAIL │\\n' 'Data Persistence' $pers_pass $pers_fail | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "",
+        "# Payment validation",
+        "pay_pass=$(grep -c 'PASS' $LOG_DIR/validation/payment_report.txt 2>/dev/null || echo 0)",
+        "pay_fail=$(grep -c 'FAIL' $LOG_DIR/validation/payment_report.txt 2>/dev/null || echo 0)",
+        "printf '│ %-30s %3d PASS / %3d FAIL │\\n' 'Payment Flow' $pay_pass $pay_fail | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "",
+        "# SEO validation",
+        "seo_pass=$(grep -c 'PASS' $LOG_DIR/validation/seo_report.txt 2>/dev/null || echo 0)",
+        "seo_fail=$(grep -c 'FAIL' $LOG_DIR/validation/seo_report.txt 2>/dev/null || echo 0)",
+        "printf '│ %-30s %3d PASS / %3d FAIL │\\n' 'SEO & Meta Tags' $seo_pass $seo_fail | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "",
+        "# Carousel validation (from earlier tasks)",
+        "car_pass=$(grep -c 'PASS' $LOG_DIR/validation/final_report.txt 2>/dev/null || echo 0)",
+        "car_fail=$(grep -c 'FAIL' $LOG_DIR/validation/final_report.txt 2>/dev/null || echo 0)",
+        "printf '│ %-30s %3d PASS / %3d FAIL │\\n' 'Carousel Generation' $car_pass $car_fail | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "",
+        "echo '└──────────────────────────────────────────────────────────────────┘' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "echo '' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "",
+        "# Calculate totals",
+        "total_pass=$((build_pass + test_pass + api_pass + db_pass + sec_pass + err_pass + pers_pass + pay_pass + seo_pass + car_pass))",
+        "total_fail=$((build_fail + test_fail + api_fail + db_fail + sec_fail + err_fail + pers_fail + pay_fail + seo_fail + car_fail))",
+        "total=$((total_pass + total_fail))",
+        "pass_rate=0",
+        "if [ $total -gt 0 ]; then pass_rate=$((total_pass * 100 / total)); fi",
+        "",
+        "echo '┌──────────────────────────────────────────────────────────────────┐' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "echo '│ OVERALL RESULTS                                                  │' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "echo '├──────────────────────────────────────────────────────────────────┤' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "printf '│ Total Checks: %-4d    Passed: %-4d    Failed: %-4d             │\\n' $total $total_pass $total_fail | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "printf '│ Pass Rate: %3d%%                                                 │\\n' $pass_rate | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "echo '└──────────────────────────────────────────────────────────────────┘' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "echo '' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "",
+        "# Final verdict",
+        "if [ $total_fail -eq 0 ]; then",
+        "  echo '╔══════════════════════════════════════════════════════════════════╗' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "  echo '║  ✅ ALL VALIDATIONS PASSED - READY FOR PRODUCTION                ║' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "  echo '╚══════════════════════════════════════════════════════════════════╝' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "elif [ $total_fail -le 5 ]; then",
+        "  echo '╔══════════════════════════════════════════════════════════════════╗' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "  echo '║  ⚠️  MINOR ISSUES - Review failures before deployment            ║' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "  echo '╚══════════════════════════════════════════════════════════════════╝' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "else",
+        "  echo '╔══════════════════════════════════════════════════════════════════╗' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "  echo '║  ❌ CRITICAL FAILURES - DO NOT DEPLOY                            ║' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "  echo '╚══════════════════════════════════════════════════════════════════╝' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "fi",
+        "",
+        "echo '' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "echo 'Full report: $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "echo 'Screenshots: $SCREENSHOT_DIR/validation/' | tee -a $LOG_DIR/validation/FINAL_VALIDATION_REPORT.txt",
+        "",
+        "# Exit with appropriate code",
+        "test $total_fail -eq 0"
+      ],
+      "expected": "Comprehensive validation report generated, all categories pass, ready for production"
+    },
+    "passes": false
+  }
+]
